@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/hasujin/ston_common v0.0.0-20210819051621-fb5500e9bee1 // indirect
 	github.com/hyperledger/fabric v2.1.1+incompatible // indirect
 	github.com/kisielk/gotool v1.0.0 // indirect
 	github.com/miekg/pkcs11 v1.0.3 // indirect
