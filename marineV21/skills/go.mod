@@ -1,4 +1,4 @@
-module github.com/COMMClient/marineV21/skills
+module github.com/hasujin/COMMClient/marineV21/skills
 
 go 1.16
 
