@@ -7,7 +7,7 @@ import (
 	"os"
 
 	//"strconv"
-	skill "github.com/hasujin/COMMClient/marineV2/skills"
+	skill "github.com/hasujin/COMMClient/marineV21/skills"
 	//pb "github.com/hyperledger/fabric-sdk-go/project/comm/protos"
 	//"golang.org/x/net/context"
 	//"google.golang.org/grpc"
