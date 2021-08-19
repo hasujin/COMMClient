@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	marine "github.com/hyperledger/fabric-sdk-go/project/comm/COMMClient/marineV21"
+	marine "github.com/hasujin/COMMClient/marineV21"
 )
 
 func main() {
