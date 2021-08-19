@@ -1,0 +1,671 @@
+/*
+ *
+ * Copyright 2015, Google Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"os"
+	"strconv"
+
+	pb "github.com/hyperledger/fabric-sdk-go/project/comm/protos"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+
+	"bufio"
+	"crypto/rand"
+	"fmt"
+	"strings"
+
+	/*
+		Please Do NOT Use this Color library,
+		when you put this into chaincode or actual running-machine/module(s).
+
+		Do not want? --> replace {color.} with {fmt. or log.}
+		(Paul.B)
+	*/
+	color "github.com/mitchellh/colorstring"
+)
+
+var (
+	address = "localhost:50051"
+)
+
+type arguments struct {
+	Args []string
+}
+
+func main() {
+	if len(os.Args) < 3 {
+		log.Printf(`
+				
+		 Ex)./marine [serverAdress:port] MessageType (arguments,....)
+		********************************************************************
+		"CHANNEL_LIST":                	0,
+		"CHANNEL_CONFIG":              	1,
+		"BLOCKCHAIN_INFO":             	2,
+		"BLOCK_INFO_NUMBER":           	3,
+		"TRANSACTION_INFO":            	4,
+		"INSTALLED_CHAINCODE_LIST":    	5,
+		"INSTANTIATED_CHAINCODE_LIST": 	6,
+		"QUERY_CHAINCODE":             	7,
+		"INVOKE_CHAINCODE":            	8,
+		"COMMIT_STATUS":               	9,
+		"GET_NOTI_SERVER":             	10,		
+		"SET_NOTI_SERVER":             	11,		
+		"HEALTH_CHECK_FOR_PEERS":      	12,		
+		"GET_TPS_INFO":                	13,		
+		"GET_NODE_INFO":               	20,		
+		"SET_NODE_INFO":               	21,		
+
+
+		***********************************************
+		Wallet and Payment (...under construction)
+		***********************************************
+
+		"GENERATE KEY&ADDRESS":		88,
+		"BLANACEOF":			888,
+		"TRANSFER":			808 (DONT NOT TRY)
+		********************************************************************`)
+		/*
+			type_, _ := strconv.Atoi(os.Args[1])  // looks dirty, need to be fancy
+			if len(os.Args) == 2 && type_ != 88 {
+				//marine()
+				return
+			}
+		*/
+		return
+
+	}
+
+	var (
+		//org_       string
+		userID_      string
+		channelID_   string
+		chaincodeID_ string
+		index_       string
+		args_        arguments
+		mjBytes      []byte
+
+		type_ int
+		seed  string
+
+		//sig         []byte
+		envelope [98]byte //envelope(96) = pubkey(32)+1 + sig(64) +1 , +1 for 0x00 (end mark)
+	)
+
+	seed = ""
+
+	if len(os.Args) > 3 {
+		address = os.Args[1]
+		type_, _ = strconv.Atoi(os.Args[2])
+	} else if len(os.Args) == 3 { // key generation with the given seed
+		type_, _ = strconv.Atoi(os.Args[1])
+		seed = os.Args[2]
+	} else { // 2, key generation with no seed
+		type_, _ = strconv.Atoi(os.Args[1])
+	}
+
+	accessKey := "b431178a-9f1a-47b1-bc96-67501c33cb7e"
+	secretKey := "hme1p2qdvs6v6"
+
+	switch pb.MessageType(type_) {
+	case pb.MessageType_CHANNEL_LIST:
+
+		if len(os.Args) != 6 && len(os.Args) != 4 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[0] userID (accessKey secretKey)")
+			return
+		}
+
+		userID_ = os.Args[3]
+		//		accessKey := os.Args[4]
+		//		secretKey := os.Args[5]
+		args_.Args = append(args_.Args, userID_, accessKey, secretKey)
+	case pb.MessageType_CHANNEL_CONFIG:
+		if len(os.Args) != 7 && len(os.Args) != 5 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[1] userID channelID accessKey secretKey")
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		//		accessKey := os.Args[5]
+		//		secretKey := os.Args[6]
+		args_.Args = append(args_.Args, userID_, channelID_, accessKey, secretKey)
+
+	case pb.MessageType_BLOCKCHAIN_INFO:
+		if len(os.Args) != 7 && len(os.Args) != 5 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[2] userID channelID accessKey secretKey")
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		//		accessKey := os.Args[5]
+		//		secretKey := os.Args[6]
+		args_.Args = append(args_.Args, userID_, channelID_, accessKey, secretKey)
+
+	case pb.MessageType_BLOCK_INFO_NUMBER:
+		if len(os.Args) != 8 && len(os.Args) != 6 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[3] userID channelID index accessKey secretKey")
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		index_ = os.Args[5]
+		//		accessKey := os.Args[6]
+		//		secretKey := os.Args[7]
+		args_.Args = append(args_.Args, userID_, channelID_, index_, accessKey, secretKey)
+		/*http://70.121.244.190/gitnsam/h.mo/project.git
+
+		case pb.MessageType_INSTANTIATED_CHAINCODE_LIST:
+			if len(os.Args) != 5 {
+				log.Printf("Ex)./client [serverAdress:port] type[5] userID, channelID")
+				return
+			}
+			userID_ = os.Args[3]
+			channelID_ = os.Args[4]
+			args_.Args = append(args_.Args, userID_, channelID_)
+		*/
+
+	case pb.MessageType_INSTALLED_CHAINCODE_LIST: //INSTALLED CHAINCODE LIST
+		if len(os.Args) != 6 && len(os.Args) != 4 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[5] userID accessKey secretKey")
+			return
+		}
+		userID_ = os.Args[3]
+		//		accessKey := os.Args[4]
+		//		secretKey := os.Args[5]
+		args_.Args = append(args_.Args, userID_, accessKey, secretKey)
+
+	case pb.MessageType_INSTANTIATED_CHAINCODE_LIST: //Instantiated CHAINhttp://70.121.244.190/gitnsam/h.mo/project.git
+
+		if len(os.Args) != 7 && len(os.Args) != 5 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[6] userID, channelID accessKey secretKey")
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		//		accessKey := os.Args[5]
+		//		secretKey := os.Args[6]
+		args_.Args = append(args_.Args, userID_, channelID_, accessKey, secretKey)
+
+	case pb.MessageType_QUERY_CHAINCODE:
+		if len(os.Args) != 9 && len(os.Args) != 7 {
+
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[7] userID channelID chaincode query_args({\"Args\":[\"query\",\"c\"]}) accessKey secretKey")
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		chaincodeID_ = os.Args[5]
+
+		//		accessKey := os.Args[7]
+		//		secretKey := os.Args[8]
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6], accessKey, secretKey)
+		log.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(os.Args[6]), &fj)
+		if err != nil {
+			log.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		sj = append(sj, accessKey, secretKey)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			log.Printf("Marshal return error %v", err)
+			return
+		}
+	case pb.MessageType_INVOKE_CHAINCODE:
+		if len(os.Args) != 8 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[8] userID channelID chaincode invoke_args({\"Args\":[\"invoke\",\"c\"]}) document")
+
+			return
+		}
+
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		chaincodeID_ = os.Args[5]
+
+		//		accessKey := os.Args[7]
+		//		secretKey := os.Args[8]
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6], accessKey, secretKey)
+		log.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(os.Args[6]), &fj)
+		if err != nil {
+			log.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		sj = append(sj, accessKey, secretKey)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			log.Printf("Marshal return error %v", err)
+			return
+		}
+
+	case pb.MessageType_COMMIT_STATUS: //Commit Status Check
+		if len(os.Args) != 9 && len(os.Args) != 7 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[9] userID channelID chaincode args({\"Args\":[\"invoke\",\"c\"]}) accessKey secretKey")
+			return
+		}
+		//		accessKey := os.Args[7]
+		//		secretKey := os.Args[8]
+		args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6], accessKey, secretKey)
+		log.Printf("Args : %s", os.Args[6])
+
+	case pb.MessageType_TRANSACTION_INFO:
+		if len(os.Args) != 9 && len(os.Args) != 7 {
+			log.Printf("Ex)./client [serverAdress:port] type[4] userID channelID query_args(ABCDEFG) unit(0:hour 1:day 2:month) accessKey secretKey")
+			log.Printf("Ex)./client [serverAdress:port] type[4] admin channelID/all query_args(2017.07.28:13.48-2017.07.29:13.50) 0(hour) accessKey secretKey")
+			return
+		}
+		//		accessKey := os.Args[7]
+		//		secretKey := os.Args[8]
+		args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6], accessKey, secretKey)
+		//								admin		channelID	startTime-endTime  unit
+	case 10:
+		log.Printf("Not implemented.\n")
+		//		if len(os.Args) != 6 {
+		//			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[10] userID accessKey secretKey")
+		//			return
+		//		}
+		//		userID_ = os.Args[3]
+		//		accessKey := os.Args[4]
+		//		secretKey := os.Args[5]
+		//		args_.Args = append(args_.Args, userID_, accessKey, secretKey)
+
+	case 11:
+		log.Printf("Not implemented.\n")
+
+	case 12:
+		if len(os.Args) != 6 && len(os.Args) != 4 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[12] address accessKey secretKey")
+			log.Printf("Ex)./COMMClientGO 127.0.0.1:50051 12 123.123.123.123:7051 ak sk")
+			return
+		}
+		peerAddress := os.Args[3]
+		//		accessKey := os.Args[4]
+		//		secretKey := os.Args[5]
+		args_.Args = append(args_.Args, peerAddress, accessKey, secretKey)
+
+	case 13:
+		if len(os.Args) != 5 && len(os.Args) != 3 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[13] accessKey secretKey")
+			return
+		}
+		args_.Args = append(args_.Args, accessKey, secretKey)
+	case 20:
+		if len(os.Args) != 7 && len(os.Args) != 5 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[20] channelID query_string accessKey secretKey")
+			log.Printf("Ex)./COMMClientGO 127.0.0.1:50051 20 channelID '{\"field\":\"orgname\",\"operator\":\"=\",\"operand\":\"org1\"}' ak sk")
+			return
+		}
+		channelID_ = os.Args[3]
+		queryString := os.Args[4]
+		//		accessKey := os.Args[5]
+		//		secretKey := os.Args[6]
+		args_.Args = append(args_.Args, channelID_, queryString, accessKey, secretKey)
+
+	case 21:
+		if len(os.Args) != 7 && len(os.Args) != 5 {
+			log.Printf("Ex)./COMMClientGO [serverAdress:port] type[21] channelID invoke_args({\"Args\":[\"invoke\",\"c\"]}) accessKey secretKey")
+			return
+		}
+		channelID_ = os.Args[3]
+		//		accessKey := os.Args[5]
+		//		secretKey := os.Args[6]
+
+		log.Printf("Args : %s", os.Args[4])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, channelID_)
+
+		err := json.Unmarshal([]byte(os.Args[4]), &fj)
+		if err != nil {
+			log.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		sj = append(sj, accessKey, secretKey)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			log.Printf("Marshal return error %v", err)
+			return
+		}
+
+	/*
+			Paul. B
+		 		The numbers of {88 ~ 108} have been reserved for the commands related to only wallet and payments.
+
+	*/
+
+	case 88: // Key and Address Generagtion
+		if len(os.Args) != 2 || len(os.Args) != 3 {
+			log.Printf(`
+
+		Ex)./marine type[88] (seed)
+			
+			If seed not given, a random value is set to generate your key pairs.
+			(Seed is recommended for the case you may lose your keys)
+
+
+			Notice!!
+			The Keys and address are generated inside local machine, not connecting to any server or medium in the internet!!
+				`)
+
+			//marine(seed)
+			var public, private []byte
+
+			//seed := "All Roads Lead to Rome of FABRIC"  // --> 32 characters or more required!!!
+
+			if seed == "" {
+				public, private, _ = generateKey(rand.Reader)
+
+			} else if len(seed) < 32 {
+				color.Println("The SEED MUST be longer than 32 characters.....Try again!!\n")
+				color.Printf("Your input SEED has the length of [%d]......Put more!!\n", len(seed))
+				return
+			} else {
+				public, private, _ = generateKey(strings.NewReader(seed))
+			}
+
+			private_base58 := Encode(private)
+			public_base58 := Encode(public)
+			spaceAddr := generateAddress(public)
+
+			log.Printf(`
+
+				1) Public  Key ---> %s
+				2) Private Key ---> %s
+				3) Address -------> %s
+				`, public_base58, private_base58, spaceAddr)
+
+			return
+
+		}
+
+		log.Printf("Test [88] : Key Generation and Address ......END\n")
+		return
+
+	case 888: // balanceof() from QUERY command.
+
+		if len(os.Args) != 4 {
+
+			//log.Printf(`Ex)./marine ip:port 888 '{"Args":["balanceOf",{"address":"z39UzmN7GhPqkYiQfVWY4pYADMQzv7qWC"}]}' `)
+			log.Printf(`Ex)./marine ip:port 888 Address(z39UzmN7GhPqkYiQfVWY4pYADMQzv7qWC)`)
+			//					0		1	2		3
+			return
+		}
+
+		//		accessKey := os.Args[7]
+		//		secretKey := os.Args[8]
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6], accessKey, secretKey)
+
+		log.Printf("Given Address : %s", os.Args[3])
+
+		/*
+			Paul : Need to check if the address given is correct or not
+		*/
+
+		//balance_query := `{"Args":["admin","aggchannel","generic_cc",{"Args":["balanceOf",{"address":"%s"}]}]}`
+		balance_query := `{"Args":["balanceOf",{"address":"%s"}]}`
+		result, _ := validateAddress(os.Args[3])
+
+		if result {
+			balance_query = fmt.Sprintf(balance_query, os.Args[3])
+			log.Printf("Balance Query : %s", balance_query)
+
+		} else {
+			log.Printf("Please Try again,....\nThe given address is INVALID !!! : %s", os.Args[3])
+			return
+		}
+
+		//=========================================================================================================
+		// Hoding,..Here!!
+		//=========================================================================================================
+
+		var sj []interface{}
+		var fj interface{}
+		//sj = append(sj, userID_, channelID_, chaincodeID_)  // ---> For money system, they(chaincode, channel and userID) might be fixed.
+
+		err := json.Unmarshal([]byte(balance_query), &fj)
+		if err != nil {
+			log.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		//sj = append(sj, accessKey, secretKey) // No need any more
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			log.Printf("Marshal return error %v", err)
+			return
+		}
+
+		log.Printf("Request --> balanaceOf  [888] : Query --> Sign and Verification ......END\n")
+
+	case 808: // tranferFrom()
+		if len(os.Args) != 7 {
+			log.Printf(`Ex)./marine ip:port 808 from to amount label`)
+			/*
+				Paul :
+					형주야,...인자들(갯수 및 더러운 ak, sk) 정리부탁
+
+			*/
+			return
+		}
+
+		/*
+			userID_ = "admin"
+			channelID_ = "aggchannel"
+			chaincodeID_ = "utxo"
+		*/
+
+		from := os.Args[3]
+		to := os.Args[4]
+		amount := os.Args[5]
+		label := os.Args[6]
+
+		result, _ := validateAddress(from)
+		if !result {
+			log.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", from)
+			return
+		}
+
+		result, _ = validateAddress(to)
+		if !result {
+			log.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", to)
+			return
+		}
+
+		if from == to {
+			log.Printf("Please Try again,....\n The given addresses are the same to each other!!\n")
+			return
+		}
+
+		transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+
+		var sj []interface{}
+		var fj interface{}
+		//sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(transfer_args), &fj)
+
+		if err != nil {
+			log.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		//************************************************************
+		log.Printf(`	
+			------------------------------------------------------------
+			Please input your PrivateKey (base58) to check and sign 
+			------------------------------------------------------------
+			----->> `)
+
+		scanner_ := bufio.NewScanner(os.Stdin)
+		scanner_.Scan()
+		t_ := scanner_.Text()
+
+		//decodedPriv, _ := base64.StdEncoding.DecodeString(string(t))
+		decodedPriv, err := Decode(string(t_))
+		validateKey(decodedPriv)
+		log.Println("\n\n\n\n")
+
+		//message := []byte("I LUV U")
+		message := []byte(from + to + amount + label)
+
+		// Sign
+		sig := Sign(decodedPriv, message)
+
+		fmt.Printf("Valid envelope!! (signature size : %d)\n", len(sig))
+
+		derivedPubKey, _ := derivePubFromPrivate([]byte(decodedPriv))
+		decoded58Public, _ := Decode(derivedPubKey)
+
+		//var envelope [96 + 2]byte 			//envelope(98) = pubkey(32) + 1(0x00) + sig(64) + 1 (0x00)
+
+		copy(envelope[0:32], decoded58Public[:])
+		copy(envelope[33:97], sig[:])
+
+		//Confirm
+		/*
+			public, err := Decode(string("6xr1SFx4Vci8FgzEu1wnGqfGSqy3uaTC9byio13xX9R7"))
+			if err != nil {
+				log.Printf("Unmarshal return error: %v", err)
+				return
+			}
+		*/
+		//if !Verify(decoded58Public, message, sig) {  // work
+		//if !Verify(envelope[0:31], message, envelope[32:95]) {  // no work
+
+		/*
+			new_pub := envelope[0:32]
+			new_sig := envelope[33:97]
+
+			fmt.Printf("new_pub  	: %x, len(%d))\n", new_pub, len(new_pub))
+			fmt.Printf("new_sig  : %x, len(%d))\n", new_sig, len(new_sig))
+
+		*/
+		if !Verify(envelope[0:32], message, envelope[33:97]) { //
+			fmt.Println("Check Verify() : Invalid signature --> Rejected\n")
+			return
+		} else {
+			fmt.Printf("Valid envelope!! (envelope size : %d)\n", len(envelope))
+		}
+
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			log.Printf("Marshal return error %v", err)
+			return
+		}
+
+	default:
+		log.Printf("Not defined yet!!	Try again!!")
+		return
+	}
+
+	// Set up a connection to the server.
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := pb.NewCOMMLayerClient(conn)
+
+	// Contact the server and print out its response.
+	//name := defaultName
+	var requestArgs []byte
+	if pb.MessageType(type_) == pb.MessageType_QUERY_CHAINCODE || pb.MessageType(type_) == pb.MessageType_INVOKE_CHAINCODE || pb.MessageType(type_) == 21 || pb.MessageType(type_) == 888 || pb.MessageType(type_) == 808 {
+		log.Printf("Q1 %s", mjBytes)
+		requestArgs = mjBytes
+	} else {
+		requestArgs, err = json.Marshal(args_)
+		if err != nil {
+			log.Printf("Marshal return error: %v", err)
+			return
+		}
+	}
+	log.Printf("requestArgs --> %v", string(requestArgs))
+
+	/*
+		var receivedArgs arguments
+		json.Unmarshal(requestArgs, &receivedArgs)
+		log.Printf("receivedArgs --> %v", receivedArgs)
+	*/
+
+	var resp *pb.ProcessResponse
+	var respErr error
+
+	if pb.MessageType(type_) == pb.MessageType_INVOKE_CHAINCODE {
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: int32(type_), Args: string(requestArgs), Document: []byte(os.Args[9])})
+	} else if pb.MessageType(type_) == 808 {
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: int32(type_), Args: string(requestArgs), Document: envelope[:]})
+	} else {
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: int32(type_), Args: string(requestArgs)})
+	}
+	if respErr != nil {
+		log.Fatalf("could not greet: %v %v", resp, respErr)
+	}
+	//log.Printf("Delivered Responses from Server --> %s", r.Response)
+	log.Printf("Delivered Responses from Server --> Status : %d  %v", resp.Status, resp)
+
+}

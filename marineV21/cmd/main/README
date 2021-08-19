@@ -1,0 +1,3 @@
+#USAGE
+./main type ip:port args
+$ ./main 888 localhost:50051 z4nEkKvA3RR7ccRMhMNdgJVVLpQveYzdq

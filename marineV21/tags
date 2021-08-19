@@ -1,0 +1,263 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+A	permanent.go	/^var A = FieldElement{$/;"	v
+ADMIN_USER	const.go	/^    ADMIN_USER = "Admin"$/;"	c
+Alphabet	encodingRules.go	/^type Alphabet struct {$/;"	t
+BTCAlphabet	encodingRules.go	/^var BTCAlphabet = NewAlphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")$/;"	v
+Base64ToBigInt	multikeysupports.go	/^func Base64ToBigInt(s string) (*big.Int, error) {$/;"	f
+BenchmarkKeyGeneration	multikeysupports.go	/^func BenchmarkKeyGeneration(N int, keyType int) {$/;"	f
+BenchmarkSigning	multikeysupports.go	/^func BenchmarkSigning(N int, keyType int) {$/;"	f
+BenchmarkVerification	multikeysupports.go	/^func BenchmarkVerification(N int, keyType int) {$/;"	f
+Benchmarking	multikeysupports.go	/^func Benchmarking(case_ int, N int, keyType int) {$/;"	f
+CachedGroupElement	pauledward25519.go	/^type CachedGroupElement struct {$/;"	t
+CheckAndPad	pkcs5_7cfb.go	/^func CheckAndPad(key []byte) []byte {$/;"	f
+CompletedGroupElement	pauledward25519.go	/^type CompletedGroupElement struct {$/;"	t
+ComputeSHA256	skills/marineSkills.go	/^func ComputeSHA256(data []byte) (hash []byte) {$/;"	f
+ComputeSHA3256	skills/marineSkills.go	/^func ComputeSHA3256(data []byte) (hash []byte) {$/;"	f
+CreateUtcTimestamp	skills/marineSkills.go	/^func CreateUtcTimestamp() *timestamp.Timestamp {$/;"	f
+DELIMITER	skills/marineSkills.go	/^const DELIMITER = "."$/;"	c
+Decode	base58New.go	/^func Decode(str string) ([]byte, error) {$/;"	f
+DecodeAlphabet	base58New.go	/^func DecodeAlphabet(str string, alphabet *Alphabet) ([]byte, error) {$/;"	f
+Decode_	base58New.go	/^func Decode_(str string) ([]byte, error) {$/;"	f
+Decoding58withType	base58New.go	/^func Decoding58withType(str string, type_ int8) ([]byte, error) {$/;"	f
+DecryptOAEP	rsa.go	/^func DecryptOAEP(privateKey []byte, ciphertext []byte, label []byte) (plaintext []byte, err error){$/;"	f
+DisplayUTXOperLabel	skills/marineSkills.go	/^func DisplayUTXOperLabel(input string) bool {$/;"	f
+DisplayUTXOperLabelwithCount	skills/marineSkills.go	/^func DisplayUTXOperLabelwithCount(input string) bool {$/;"	f
+Double	pauledward25519.go	/^func (p *ExtendedGroupElement) Double(r *CompletedGroupElement) {$/;"	f
+Double	pauledward25519.go	/^func (p *ProjectiveGroupElement) Double(r *CompletedGroupElement) {$/;"	f
+Encode	base58New.go	/^func Encode(bin []byte) string {$/;"	f
+EncodeAlphabet	base58New.go	/^func EncodeAlphabet(bin []byte, alphabet *Alphabet) string {$/;"	f
+Encode_	base58New.go	/^func Encode_(bin []byte) string {$/;"	f
+Encoding58withType	base58New.go	/^func Encoding58withType(bin []byte, type_ int8) string {$/;"	f
+EncryptOAEP	rsa.go	/^func EncryptOAEP(random io.Reader, publicKey []byte, message []byte, label []byte) (ciphertext []byte, err error){$/;"	f
+ErrInvalidBlockSize	pkcs5_7cbc.go	/^	ErrInvalidBlockSize = errors.New("invalid blocksize")$/;"	v
+ErrInvalidPKCS7Data	pkcs5_7cbc.go	/^	ErrInvalidPKCS7Data = errors.New("invalid PKCS7 data (empty or not padded)")$/;"	v
+ErrInvalidPKCS7Padding	pkcs5_7cbc.go	/^	ErrInvalidPKCS7Padding = errors.New("invalid padding on input")$/;"	v
+ExecuteMarine	marineV2.go	/^func ExecuteMarine(args []string, user string, tChannel string, tChaincode string) (mResponse *pb.ProcessResponse, e error) {$/;"	f
+ExtendedGroupElement	pauledward25519.go	/^type ExtendedGroupElement struct {$/;"	t
+FastBase58Decoding	base58New.go	/^func FastBase58Decoding(str string) ([]byte, error) {$/;"	f
+FastBase58DecodingAlphabet	base58New.go	/^func FastBase58DecodingAlphabet(str string, alphabet *Alphabet) ([]byte, error) {$/;"	f
+FastBase58Encoding	base58New.go	/^func FastBase58Encoding(bin []byte) string {$/;"	f
+FastBase58EncodingAlphabet	base58New.go	/^func FastBase58EncodingAlphabet(bin []byte, alphabet *Alphabet) string {$/;"	f
+FeAdd	pauledward25519.go	/^func FeAdd(dst, a, b *FieldElement) {$/;"	f
+FeCMove	pauledward25519.go	/^func FeCMove(f, g *FieldElement, b int32) {$/;"	f
+FeCombine	pauledward25519.go	/^func FeCombine(h *FieldElement, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9 int64) {$/;"	f
+FeCopy	pauledward25519.go	/^func FeCopy(dst, src *FieldElement) {$/;"	f
+FeFromBytes	pauledward25519.go	/^func FeFromBytes(dst *FieldElement, src *[32]byte) {$/;"	f
+FeInvert	pauledward25519.go	/^func FeInvert(out, z *FieldElement) {$/;"	f
+FeIsNegative	pauledward25519.go	/^func FeIsNegative(f *FieldElement) byte {$/;"	f
+FeIsNonZero	pauledward25519.go	/^func FeIsNonZero(f *FieldElement) int32 {$/;"	f
+FeMul	pauledward25519.go	/^func FeMul(h, f, g *FieldElement) {$/;"	f
+FeNeg	pauledward25519.go	/^func FeNeg(h, f *FieldElement) {$/;"	f
+FeOne	pauledward25519.go	/^func FeOne(fe *FieldElement) {$/;"	f
+FeSquare	pauledward25519.go	/^func FeSquare(h, f *FieldElement) {$/;"	f
+FeSquare2	pauledward25519.go	/^func FeSquare2(h, f *FieldElement) {$/;"	f
+FeSub	pauledward25519.go	/^func FeSub(dst, a, b *FieldElement) {$/;"	f
+FeToBytes	pauledward25519.go	/^func FeToBytes(s *[32]byte, h *FieldElement) {$/;"	f
+FeZero	pauledward25519.go	/^func FeZero(fe *FieldElement) {$/;"	f
+FieldElement	pauledward25519.go	/^type FieldElement [10]int32$/;"	t
+FindMissingElements	skills/marineSkills.go	/^func FindMissingElements(all []string, some []string) (delta []string) {$/;"	f
+Flatten	skills/marineSkills.go	/^func Flatten(i interface{}) []string {$/;"	f
+FlickrAlphabet	encodingRules.go	/^var FlickrAlphabet = NewAlphabet("123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ")$/;"	v
+FromBytes	pauledward25519.go	/^func (p *ExtendedGroupElement) FromBytes(s *[32]byte) bool {$/;"	f
+GeDoubleScalarMultVartime	pauledward25519.go	/^func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *[32]byte, A *ExtendedGroupElement, b *[32]byte) {$/;"	f
+GeScalarMultBase	pauledward25519.go	/^func GeScalarMultBase(h *ExtendedGroupElement, a *[32]byte) {$/;"	f
+GenerateBytesUUID	skills/marineSkills.go	/^func GenerateBytesUUID() []byte {$/;"	f
+GenerateHashFromSignature	skills/marineSkills.go	/^func GenerateHashFromSignature(path string, args []byte) []byte {$/;"	f
+GenerateIDWithAlg	skills/marineSkills.go	/^func GenerateIDWithAlg(customIDgenAlg string, payload []byte) (string, error) {$/;"	f
+GenerateIDfromTxSHAHash	skills/marineSkills.go	/^func GenerateIDfromTxSHAHash(payload []byte) string {$/;"	f
+GenerateIntUUID	skills/marineSkills.go	/^func GenerateIntUUID() *big.Int {$/;"	f
+GenerateUUID	skills/marineSkills.go	/^func GenerateUUID() string {$/;"	f
+GetKeyFromUser	multikeysupports.go	/^func GetKeyFromUser() []byte {$/;"	f
+GetMode	marineV2.go	/^func GetMode() string {$/;"	f
+GetPrivateKeyFromPemFile	rsa.go	/^func GetPrivateKeyFromPemFile(fileName string){$/;"	f
+GetPublicKeyFromPemFile	rsa.go	/^func GetPublicKeyFromPemFile(fileName string){$/;"	f
+GetRandomBytes	skills/noncePaul.go	/^func GetRandomBytes(len int) ([]byte, error) {$/;"	f
+GetRandomNonce	skills/noncePaul.go	/^func GetRandomNonce() ([]byte, error) {$/;"	f
+GetTimeStamp	marineTime.go	/^func GetTimeStamp() string {$/;"	f
+GetTimeStampFromDate	marineTime.go	/^func GetTimeStampFromDate(dtformat string) string {$/;"	f
+GetTodaysDate	marineTime.go	/^func GetTodaysDate() string {$/;"	f
+GetTodaysDateTime	marineTime.go	/^func GetTodaysDateTime() string {$/;"	f
+GetTodaysDateTimeFormatted	marineTime.go	/^func GetTodaysDateTimeFormatted() string {$/;"	f
+Help	helpinfo.go	/^func Help() {$/;"	f
+Marine	const.go	/^type Marine struct{$/;"	t
+MarshalPKCS1PrivateKey	rsa.go	/^func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {$/;"	f
+MarshalPKCS1PublicKey	rsa.go	/^func MarshalPKCS1PublicKey(key *rsa.PublicKey) []byte {$/;"	f
+NewAlphabet	encodingRules.go	/^func NewAlphabet(s string) *Alphabet {$/;"	f
+NonceSize	skills/noncePaul.go	/^        NonceSize = 24$/;"	c
+PKCS5Padding	pkcs5_7cbc.go	/^func PKCS5Padding(ciphertext []byte, blockSize int) []byte {$/;"	f
+PKCS5Trimming	pkcs5_7cbc.go	/^func PKCS5Trimming(encrypt []byte) []byte {$/;"	f
+Pad	pkcs5_7cfb.go	/^func Pad(src []byte) []byte {$/;"	f
+ParsePKCS1PrivateKey	rsa.go	/^func ParsePKCS1PrivateKey(priv []byte) (*rsa.PrivateKey, error) {$/;"	f
+ParsePKCS1PublicKey	rsa.go	/^func ParsePKCS1PublicKey(pub []byte) (*rsa.PublicKey, error) {$/;"	f
+ParseTime	marineTime.go	/^func ParseTime() {$/;"	f
+PaulAlphabet	encodingRules.go	/^var PaulAlphabet = NewAlphabet("z23456789abcdefghijkmnopqrstuvwxy1ABCDEFGHJKLMNPQRSTUVWXYZ")$/;"	v
+PaulAlphabetECC	encodingRules.go	/^var PaulAlphabetECC = NewAlphabet("e23456789abcdzfghijkmnopqrstuvwxy1ABCDEFGHJKLMNPQRSTUVWXYZ")$/;"	v
+PaulAlphabetRSA	encodingRules.go	/^var PaulAlphabetRSA = NewAlphabet("r23456789abcdzfghijkmnopqrstuvwxy1ABCDEFGHJKLMNPQRSTUVWXYZ")$/;"	v
+PreComputedGroupElement	pauledward25519.go	/^type PreComputedGroupElement struct {$/;"	t
+PreComputedGroupElementCMove	pauledward25519.go	/^func PreComputedGroupElementCMove(t, u *PreComputedGroupElement, b int32) {$/;"	f
+PrivateKey	pled25519v2.go	/^type PrivateKey []byte$/;"	t
+PrivateKeySize	pled25519v2.go	/^	PrivateKeySize = 64$/;"	c
+ProjectiveGroupElement	pauledward25519.go	/^type ProjectiveGroupElement struct {$/;"	t
+PublicEW	pled25519v2.go	/^func (priv PrivateKey) PublicEW() crypto.PublicKey {$/;"	f
+PublicKey	pled25519v2.go	/^type PublicKey []byte$/;"	t
+PublicKeySize	pled25519v2.go	/^	PublicKeySize = 32$/;"	c
+Read	multikeysupports.go	/^func (zeroReader) Read(buf []byte) (int, error) {$/;"	f
+ScMulAdd	pauledward25519.go	/^func ScMulAdd(s, a, b, c *[32]byte) {$/;"	f
+ScReduce	pauledward25519.go	/^func ScReduce(out *[32]byte, s *[64]byte) {$/;"	f
+SetMode	marineV2.go	/^func SetMode(mode string) {$/;"	f
+Sign	e2r.go	/^func Sign(privateKey []byte,message []byte) (signature []byte, err error) {$/;"	f
+SignECC	ecc.go	/^func SignECC(private_key_bytes []byte, hash []byte) (signautre []byte, err error) {$/;"	f
+SignECC_	ecc.go	/^func SignECC_(hash []byte, private_key_bytes []byte) (r, s *big.Int, err error) {$/;"	f
+SignEW	pled25519v2.go	/^func SignEW(privateKey PrivateKey, message []byte) []byte {$/;"	f
+SignEW_	pled25519v2.go	/^func (priv PrivateKey) SignEW_(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {$/;"	f
+SignRSA	rsa.go	/^func SignRSA(privateKey []byte, message []byte) (signature []byte, err error){$/;"	f
+SignatureSize	pled25519v2.go	/^	SignatureSize = 64$/;"	c
+SqrtM1	permanent.go	/^var SqrtM1 = FieldElement{$/;"	v
+SumMessages	signatureInAttachment.go	/^func SumMessages(args ...string) []byte {$/;"	f
+TLS	const.go	/^    TLS             = false$/;"	v
+ToBytes	pauledward25519.go	/^func (p *ExtendedGroupElement) ToBytes(s *[32]byte) {$/;"	f
+ToBytes	pauledward25519.go	/^func (p *ProjectiveGroupElement) ToBytes(s *[32]byte) {$/;"	f
+ToCached	pauledward25519.go	/^func (p *ExtendedGroupElement) ToCached(r *CachedGroupElement) {$/;"	f
+ToExtended	pauledward25519.go	/^func (p *CompletedGroupElement) ToExtended(r *ExtendedGroupElement) {$/;"	f
+ToProjective	pauledward25519.go	/^func (p *CompletedGroupElement) ToProjective(r *ProjectiveGroupElement) {$/;"	f
+ToProjective	pauledward25519.go	/^func (p *ExtendedGroupElement) ToProjective(r *ProjectiveGroupElement) {$/;"	f
+TrivialBase58Decoding	base58New.go	/^func TrivialBase58Decoding(str string) ([]byte, error) {$/;"	f
+TrivialBase58DecodingAlphabet	base58New.go	/^func TrivialBase58DecodingAlphabet(str string, alphabet *Alphabet) ([]byte, error) {$/;"	f
+TrivialBase58Encoding	base58New.go	/^func TrivialBase58Encoding(a []byte) string {$/;"	f
+TrivialBase58EncodingAlphabet	base58New.go	/^func TrivialBase58EncodingAlphabet(a []byte, alphabet *Alphabet) string {$/;"	f
+UTXO	skills/marineSkills.go	/^type UTXO struct {$/;"	t
+UTXOperLabel	skills/marineSkills.go	/^func UTXOperLabel(input string) (symbol []string, balance []string, err error) {$/;"	f
+UTXOs	skills/marineSkills.go	/^type UTXOs struct {$/;"	t
+Unpad	pkcs5_7cfb.go	/^func Unpad(src []byte) ([]byte, error) {$/;"	f
+VERSION	const.go	/^    VERSION = "MARINE VER-21.3"$/;"	c
+Verify	e2r.go	/^func Verify(publicKey []byte, message []byte, signature []byte) bool {$/;"	f
+VerifyECC	ecc.go	/^func VerifyECC(public_key_bytes []byte, hash []byte, signautre []byte) (result bool) {$/;"	f
+VerifyECC_	ecc.go	/^func VerifyECC_(hash []byte, public_key_bytes []byte, r *big.Int, s *big.Int) (result bool) {$/;"	f
+VerifyEW	pled25519v2.go	/^func VerifyEW(publicKey PublicKey, message, sig []byte) bool {$/;"	f
+VerifyRSA	rsa.go	/^func VerifyRSA(publicKey []byte, message []byte, signature []byte) bool {$/;"	f
+VerifyWithRS	e2r.go	/^func VerifyWithRS(publicKey []byte, message []byte, r *big.Int, s *big.Int) bool {$/;"	f
+VerifyWithType	e2r.go	/^func VerifyWithType(publicKey []byte, message []byte, signature []byte, type_ int) bool {$/;"	f
+Zero	pauledward25519.go	/^func (p *ExtendedGroupElement) Zero() {$/;"	f
+Zero	pauledward25519.go	/^func (p *PreComputedGroupElement) Zero() {$/;"	f
+Zero	pauledward25519.go	/^func (p *ProjectiveGroupElement) Zero() {$/;"	f
+addBase64Padding	pkcs5_7cfb.go	/^func addBase64Padding(value string) string {$/;"	f
+address	const.go	/^    address         = "localhost:50061"$/;"	v
+alg	skills/marineSkills.go	/^type alg struct {$/;"	t
+args_	const.go	/^    args_        arguments$/;"	v
+arguments	const.go	/^type arguments struct {$/;"	t
+attachment	const.go	/^    attachment  []byte$/;"	v
+availableIDgenAlgs	skills/marineSkills.go	/^var availableIDgenAlgs = map[string]alg{$/;"	v
+base	permanent.go	/^var base = [32][8]PreComputedGroupElement{$/;"	v
+bi	permanent.go	/^var bi = [8]PreComputedGroupElement{$/;"	v
+bn0	base58New.go	/^	bn0  = big.NewInt(0)$/;"	v
+bn58	base58New.go	/^	bn58 = big.NewInt(58)$/;"	v
+buildEnvelope	signatureInAttachment.go	/^func buildEnvelope(args ...string) ([]byte, error) {$/;"	f
+buildEnvelopeAndAccount	signatureInAttachment.go	/^func buildEnvelopeAndAccount(args ...string) ([]byte, []byte) {$/;"	f
+buildEnvelopeForApprove	signatureInAttachment.go	/^func buildEnvelopeForApprove(owner, spender, label, limit, expired string) ([]byte, error) {$/;"	f
+buildEnvelopeWithGivens	signatureInAttachment.go	/^func buildEnvelopeWithGivens(pubkey []byte, messsage []byte, r *big.Int, s *big.Int) ([]byte, error) {$/;"	f
+buildEnvelopewithPrivKey	signatureInAttachment.go	/^func buildEnvelopewithPrivKey(args ...string) ([]byte, error) {$/;"	f
+certFILE	const.go	/^    certFILE        = ""$/;"	v
+chaincodeID_	const.go	/^    chaincodeID_ string$/;"	v
+channelID_	const.go	/^    channelID_   string$/;"	v
+checkError	rsa.go	/^func checkError(err error) {$/;"	f
+combined	skills/marineSkills.go	/^type combined struct {$/;"	t
+contractDetails	const.go	/^type contractDetails struct {$/;"	t
+d	permanent.go	/^var d = FieldElement{$/;"	v
+d2	permanent.go	/^var d2 = FieldElement{$/;"	v
+date2Epoch	marineTime.go	/^func date2Epoch(date string) string{$/;"	f
+decryptPKCS7	pkcs5_7cbc.go	/^func decryptPKCS7(aesKey string, inputFile string) {$/;"	f
+decryptPKCS7CFB	pkcs5_7cfb.go	/^func decryptPKCS7CFB(key []byte, text string) (string, error) {$/;"	f
+defaultAlg	skills/marineSkills.go	/^const defaultAlg = "sha256"$/;"	c
+derivePubFromPrivate	e2r.go	/^func derivePubFromPrivate(privateKey []byte)(publicKey []byte, err error) {$/;"	f
+derivePubFromPrivateECC	ecc.go	/^func derivePubFromPrivateECC(private_key_byte []byte) ([]byte, error) {$/;"	f
+derivePubFromPrivateEW	pled25519v2.go	/^func derivePubFromPrivateEW(givenprivateKey PrivateKey) (derivedprivateKey []byte, err error) {$/;"	f
+derivePubFromPrivateRSA	rsa.go	/^func derivePubFromPrivateRSA(private_key_byte []byte) ([]byte, error) {$/;"	f
+derivePubFromPrivateWithType	e2r.go	/^func derivePubFromPrivateWithType(privateKey []byte, type_ int) (publicKey []byte, err error) {$/;"	f
+detectKeyTypeFromPrivKey	multikeysupports.go	/^func detectKeyTypeFromPrivKey(priv []byte) int {$/;"	f
+detectKeyTypeFromPubKey	multikeysupports.go	/^func detectKeyTypeFromPubKey(pub []byte) int {$/;"	f
+doubleCheckSum4	multikeysupports.go	/^func doubleCheckSum4(source []byte) []byte{$/;"	f
+encryptPKCS7	pkcs5_7cbc.go	/^func encryptPKCS7(aeskey string, filename string) {$/;"	f
+encryptPKCS7CFB	pkcs5_7cfb.go	/^func encryptPKCS7CFB(key []byte, text string) (string, error) {$/;"	f
+envelope	signatureInAttachment.go	/^type envelope struct {$/;"	t
+epoch2Date	marineTime.go	/^func epoch2Date(epochSec string) string {$/;"	f
+epoch2Date_	marineTime.go	/^func epoch2Date_() {$/;"	f
+equal	pauledward25519.go	/^func equal(b, c int32) int32 {$/;"	f
+fePow22523	pauledward25519.go	/^func fePow22523(out, z *FieldElement) {$/;"	f
+feSquare	pauledward25519.go	/^func feSquare(f *FieldElement) (h0, h1, h2, h3, h4, h5, h6, h7, h8, h9 int64) {$/;"	f
+flatter	skills/marineSkills.go	/^func flatter(k string, m *[]string, v reflect.Value) {$/;"	f
+geAdd	pauledward25519.go	/^func geAdd(r *CompletedGroupElement, p *ExtendedGroupElement, q *CachedGroupElement) {$/;"	f
+geMixedAdd	pauledward25519.go	/^func geMixedAdd(r *CompletedGroupElement, p *ExtendedGroupElement, q *PreComputedGroupElement) {$/;"	f
+geMixedSub	pauledward25519.go	/^func geMixedSub(r *CompletedGroupElement, p *ExtendedGroupElement, q *PreComputedGroupElement) {$/;"	f
+geSub	pauledward25519.go	/^func geSub(r *CompletedGroupElement, p *ExtendedGroupElement, q *CachedGroupElement) {$/;"	f
+generateAddress	multikeysupports.go	/^func generateAddress(public []byte) string {$/;"	f
+generateAddressECC	ecc.go	/^func generateAddressECC(public []byte) string {$/;"	f
+generateKey	e2r.go	/^func generateKey(random io.Reader, type_ int) (publicKey []byte, privateKey []byte, err error) {$/;"	f
+generateKeyEW	pled25519v2.go	/^func generateKeyEW(rand io.Reader) (publicKey PublicKey, privateKey PrivateKey, err error) {$/;"	f
+generateKeysECC	ecc.go	/^func generateKeysECC(curveName string, random io.Reader) (public_key_bytes []byte, private_key_bytes []byte,  err error) {$/;"	f
+generateKeysRSA	rsa.go	/^func generateKeysRSA(random io.Reader, size int) (PublicKey []byte, PrivateKey []byte, err error) {$/;"	f
+generatePubKeyFromPrivateKeyEW	pled25519v2.go	/^func generatePubKeyFromPrivateKeyEW(privateKey PrivateKey) (publicKey PublicKey, err error) {$/;"	f
+getBoolEnv	cmd/main/main.go	/^func getBoolEnv(key string, defaultValue bool) bool {$/;"	f
+getBoolEnv	cmd/marineV21/main.go	/^func getBoolEnv(key string, defaultValue bool) bool {$/;"	f
+getEnv	cmd/main/main.go	/^func getEnv(key, defaultValue string) string {$/;"	f
+getEnv	cmd/marineV21/main.go	/^func getEnv(key, defaultValue string) string {$/;"	f
+getIntEnv	cmd/main/main.go	/^func getIntEnv(key string, defaultValue int) int {$/;"	f
+getIntEnv	cmd/marineV21/main.go	/^func getIntEnv(key string, defaultValue int) int {$/;"	f
+idBytesToStr	skills/marineSkills.go	/^func idBytesToStr(id []byte) string {$/;"	f
+index_	const.go	/^    index_       string$/;"	v
+issueAccountID	multikeysupports.go	/^func issueAccountID(public []byte) []byte{$/;"	f
+load3	pauledward25519.go	/^func load3(in []byte) int64 {$/;"	f
+load4	pauledward25519.go	/^func load4(in []byte) int64 {$/;"	f
+loadGobKey	rsa.go	/^func loadGobKey(fileName string, key interface{}) {$/;"	f
+main	cmd/main/main.go	/^func main() {$/;"	f
+main	cmd/main/main.go	/^package main$/;"	p
+main	cmd/marineV21/main.go	/^func main() {$/;"	f
+main	cmd/marineV21/main.go	/^package main$/;"	p
+marine	base58New.go	/^package marine$/;"	p
+marine	const.go	/^package marine$/;"	p
+marine	e2r.go	/^package marine$/;"	p
+marine	ecc.go	/^package marine$/;"	p
+marine	encodingRules.go	/^package marine$/;"	p
+marine	helpinfo.go	/^package marine$/;"	p
+marine	marineTime.go	/^package marine$/;"	p
+marine	marineV2.go	/^package marine$/;"	p
+marine	multikeysupports.go	/^package marine$/;"	p
+marine	pauledward25519.go	/^package marine$/;"	p
+marine	permanent.go	/^package marine$/;"	p
+marine	pkcs5_7cbc.go	/^package marine$/;"	p
+marine	pkcs5_7cfb.go	/^package marine$/;"	p
+marine	pled25519v2.go	/^package marine$/;"	p
+marine	rsa.go	/^package marine$/;"	p
+marine	signatureInAttachment.go	/^package marine$/;"	p
+mjBytes	const.go	/^    mjBytes      []byte$/;"	v
+myMarine	marineV2.go	/^var myMarine Marine$/;"	v
+negative	pauledward25519.go	/^func negative(b int32) int32 {$/;"	f
+obtainIDandAddressFromPrivKey	multikeysupports.go	/^func obtainIDandAddressFromPrivKey(private []byte, sort int) string { \/\/ 1 (ID) and 2 (Address)$/;"	f
+obtainIDandAddressFromPubKey	multikeysupports.go	/^func obtainIDandAddressFromPubKey(public []byte, sort int) string { \/\/ 1 (ID) and 2 (Address)$/;"	f
+pkcs7Pad	pkcs5_7cbc.go	/^func pkcs7Pad(b []byte, blocksize int) ([]byte, error) {$/;"	f
+pkcs7Unpad	pkcs5_7cbc.go	/^func pkcs7Unpad(b []byte, blocksize int) ([]byte, error) {$/;"	f
+refundable	marineV2.go	/^func refundable(resp *pb.ProcessResponse, contract *contractDetails) bool {$/;"	f
+removeBase64Padding	pkcs5_7cfb.go	/^func removeBase64Padding(value string) string {$/;"	f
+saveGobKey	rsa.go	/^func saveGobKey(fileName string, key interface{}) {$/;"	f
+savePrivateKeyInPEM	rsa.go	/^func savePrivateKeyInPEM(fileName string, key *rsa.PrivateKey) {$/;"	f
+savePublicKeyInPEM	rsa.go	/^func savePublicKeyInPEM(fileName string, pubkey rsa.PublicKey) {$/;"	f
+seed	const.go	/^    seed  string$/;"	v
+selectPoint	pauledward25519.go	/^func selectPoint(t *PreComputedGroupElement, pos int32, b int32) {$/;"	f
+signature	ecc.go	/^type signature struct {$/;"	t
+skill	skills/marineSkills.go	/^package skill$/;"	p
+skill	skills/noncePaul.go	/^package skill$/;"	p
+slide	pauledward25519.go	/^func slide(r *[256]int8, a *[32]byte) {$/;"	f
+test1	pkcs5_7cbc.go	/^func test1() {$/;"	f
+testA	marineTime.go	/^func testA() {$/;"	f
+type_	const.go	/^    type_ int$/;"	v
+userID_	const.go	/^    userID_      string$/;"	v
+validateAddress	multikeysupports.go	/^func validateAddress(address string) (bool, error)  {$/;"	f
+validateAddressAll	multikeysupports.go	/^func validateAddressAll(address string) (bool, error)  {$/;"	f
+validateKeyEW	pled25519v2.go	/^func validateKeyEW(givenPrivateKey PrivateKey) bool {$/;"	f
+withdrawable	marineV2.go	/^func withdrawable(resp *pb.ProcessResponse, contract *contractDetails, secret string) bool {$/;"	f
+zero	pauledward25519.go	/^var zero FieldElement$/;"	v
+zeroReader	multikeysupports.go	/^type zeroReader struct{}$/;"	t

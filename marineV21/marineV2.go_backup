@@ -1,0 +1,2942 @@
+/*
+ *
+ * Copyright 2015, Google Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+package marine
+
+import (
+	b64 "encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+
+	//"log"
+	"os"
+	"strconv"
+
+	skill "github.com/hyperledger/fabric-sdk-go/project/comm/COMMClient/marineV21/skills"
+	pb "github.com/hyperledger/fabric-sdk-go/project/comm/protos"
+
+	//ed "github.com/hyperledger/fabric-sdk-go/project/comm/COMMClient/marineV2/encdec"
+	"bufio"
+	"crypto/rand"
+	"fmt"
+	"math/big"
+	"strings"
+
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+
+	//"bytes"
+	"crypto/sha256"
+	"time"
+
+	"google.golang.org/grpc/credentials"
+
+	/*
+	   Please Do NOT Use this Color library,
+	   when you put this into chaincode or actual running-machine/module(s).
+
+	   Do not want? --> replace {color.} with {fmt. or fmt.}
+	   (Paul.B)
+	*/
+	color "github.com/mitchellh/colorstring"
+	//colorstring.Println("[blue]Hello [red]World!")
+)
+
+func Main__(args []string) {
+
+	if args != nil {
+		os.Args = args
+	}
+
+	if len(os.Args) < 2 {
+		Help()
+		/*
+		   type_, _ := strconv.Atoi(os.Args[1])  // looks dirty, need to be fancy
+		   if len(os.Args) == 2 && type_ != 88 {
+		       //marine()
+		       return
+		   }
+		*/
+		return
+
+	}
+
+	tmp := os.Getenv("ASSET_CHANNEL")
+	if tmp != "" {
+		tokenChannel = tmp
+	}
+	//token chaincode name
+	tmp = os.Getenv("ASSET_CC")
+	if tmp != "" {
+		tokenCC = tmp
+	}
+
+	/*
+	   if len(os.Args) > 3 {
+	       address = os.Args[1]
+	       type_, _ = strconv.Atoi(os.Args[2])
+	   } else if len(os.Args) == 3 { // key generation with the given seed
+	       type_, _ = strconv.Atoi(os.Args[1])
+	       seed = os.Args[2]
+	   } else { // 2, key generation with no seed
+	       type_, _ = strconv.Atoi(os.Args[1])
+	   }
+	*/
+	type_, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		return
+	}
+
+	if len(os.Args) > 2 && type_ != 88 && type_ != 28 && type_ != 82 {
+		address = os.Args[2]
+	}
+
+	//fmt.Printf("\n----------------------------------------------\n")
+	tls := os.Getenv("TLS")
+	if tls == "true" {
+
+		certFILE = os.Getenv("CERT_FILE")
+		if certFILE == "" {
+			//certFILE = "./TLScerts2/server.crt"
+			certFILE = "./TLScerts3/serverED.crt"
+			fmt.Printf("STARGATE[D] Cert is NOT given. Try to read key from : %s\n", certFILE)
+		}
+		TLS = true
+		//fmt.Printf("TLS (ON) --> Cert is from (%s)\n", certFILE)
+	} else {
+		//fmt.Printf("TLS (OFF)\n")
+	}
+	//fmt.Printf("----------------------------------------------\n")
+
+	// Set up a connection to the server.
+	var conn *grpc.ClientConn
+
+	if certFILE != "" && TLS == true {
+
+		///////////////////////////////////////////////////////////////////////////
+		//    Marine in TLS -- Paul
+		///////////////////////////////////////////////////////////////////////////
+
+		creds, err := credentials.NewClientTLSFromFile(certFILE, "")
+		if err != nil {
+			fmt.Printf("Cannot load tls cert: %s\n", err)
+			return
+		}
+		// Initiate a connection with the server
+		conn, err = grpc.Dial(address, grpc.WithTransportCredentials(creds))
+		if err != nil {
+			fmt.Printf("Cannot not connect: %s", err)
+			return
+		}
+
+	} else {
+		conn, err = grpc.Dial(address, grpc.WithInsecure())
+		if err != nil {
+			fmt.Printf("did not connect: %v", err)
+			return
+		}
+	}
+	defer conn.Close()
+
+	c := pb.NewCOMMLayerClient(conn)
+
+	var resp *pb.ProcessResponse
+	var respErr error
+
+	switch pb.MessageType(type_) {
+	case pb.MessageType_CHANNEL_LIST:
+
+		if len(os.Args) != 4 {
+			fmt.Printf("Ex)./%s type[0] [serverAdress:port] userID\n", marineVersion)
+			return
+		}
+
+		userID_ = os.Args[3]
+
+		args_.Args = append(args_.Args, userID_)
+	case pb.MessageType_CHANNEL_CONFIG:
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[1] [serverAdress:port] userID channelID\n", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+
+		args_.Args = append(args_.Args, userID_, channelID_)
+
+	case pb.MessageType_BLOCKCHAIN_INFO:
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[2] [serverAdress:port] userID channelID\n", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+
+		args_.Args = append(args_.Args, userID_, channelID_)
+
+	case pb.MessageType_BLOCK_INFO_NUMBER:
+		if len(os.Args) != 6 {
+			fmt.Printf("Ex)./%s type[3] [serverAdress:port] userID channelID index\n", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		index_ = os.Args[5]
+
+		args_.Args = append(args_.Args, userID_, channelID_, index_)
+
+	case pb.MessageType_INSTALLED_CHAINCODE_LIST: //INSTALLED CHAINCODE LIST
+		if len(os.Args) != 4 {
+			fmt.Printf("Ex)./%s type[5] [serverAdress:port] userID\n", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+
+		args_.Args = append(args_.Args, userID_)
+
+	case pb.MessageType_INSTANTIATED_CHAINCODE_LIST: //Instantiated CHAIN
+
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[6] [serverAdress:port] userID, channelID\n", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+
+		args_.Args = append(args_.Args, userID_, channelID_)
+
+	case pb.MessageType_QUERY_CHAINCODE:
+		if len(os.Args) != 7 {
+
+			fmt.Printf("Ex)./%s type[7] [serverAdress:port] userID channelID chaincode query_args({\"Args\":[\"query\",\"c\"]})\n", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		chaincodeID_ = os.Args[5]
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(os.Args[6]), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+	case pb.MessageType_INVOKE_CHAINCODE:
+		len_arg := len(os.Args)
+
+		if len_arg < 7 {
+			fmt.Printf("Ex)./%s type[8] [serverAdress:port] userID channelID chaincode invoke_args({\"Args\":[\"invoke\",\"c\"]}) attachment(option)\n", marineVersion)
+
+			return
+		}
+
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		chaincodeID_ = os.Args[5]
+
+		if len_arg == 8 { // Have a Pad??
+			attachment = []byte(os.Args[7])
+		} else {
+			attachment = nil
+		}
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(os.Args[6]), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+	case pb.MessageType_COMMIT_STATUS: //Commit Status Check
+		if len(os.Args) != 7 {
+			fmt.Printf("Ex)./%s type[9] [serverAdress:port] userID channelID chaincode args({\"Args\":[\"invoke\",\"c\"]})\n", marineVersion)
+			return
+		}
+
+		args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		fmt.Printf("Args : %s", os.Args[6])
+
+	case pb.MessageType_TRANSACTION_INFO:
+		if len(os.Args) != 9 && len(os.Args) != 7 {
+			fmt.Printf("Ex)./%s type[4] [serverAdress:port] userID channelID query_args(ABCDEFG) unit(0:hour 1:day 2:month)\n", marineVersion)
+			fmt.Printf("Ex)./%s type[4] [serverAdress:port] admin channelID/all query_args(2017.07.28:13.48-2017.07.29:13.50) 0(hour)\n", marineVersion)
+			return
+		}
+
+		args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//                              admin       channelID   startTime-endTime  unit
+	case 10:
+		fmt.Printf("Not implemented.\n")
+
+	case 11:
+		fmt.Printf("Not implemented.\n")
+
+	case 12:
+		if len(os.Args) != 4 {
+			fmt.Printf("Ex)./%s type[12] [serverAdress:port] address\n", marineVersion)
+			fmt.Printf("Ex)./%s 12 127.0.0.1:50051 123.123.123.123:7051\n", marineVersion)
+			return
+		}
+		peerAddress := os.Args[3]
+
+		args_.Args = append(args_.Args, peerAddress)
+
+	case 13:
+		if len(os.Args) != 3 {
+			fmt.Printf("Ex)./%s type[13] [serverAdress:port]\n", marineVersion)
+			return
+		}
+
+	case 20:
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[20] [serverAdress:port] channelID query_string\n", marineVersion)
+			fmt.Printf("Ex)./%s 20 127.0.0.1:50051 channelID '{\"field\":\"orgname\",\"operator\":\"=\",\"operand\":\"org1\"}'\n", marineVersion)
+			return
+		}
+		channelID_ = os.Args[3]
+		queryString := os.Args[4]
+
+		args_.Args = append(args_.Args, channelID_, queryString)
+
+	case 21:
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[21] [serverAdress:port] channelID invoke_args({\"Args\":[\"invoke\",\"c\"]})\n", marineVersion)
+			return
+		}
+		channelID_ = os.Args[3]
+
+		fmt.Printf("Args : %s", os.Args[4])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, channelID_)
+
+		err := json.Unmarshal([]byte(os.Args[4]), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+	/*
+	   Paul. B
+	       The numbers of {88 ~ 108} have been reserved for the commands related to only wallet and payments.
+
+	*/
+
+	/*
+	   Paul Keys :
+
+	       Edward25519 :
+	           PublicKeySize = 32, PrivateKeySize = 64, SignatureSize = 64
+
+
+
+	       ECDSA
+	           length(curve : P-256) --> (PubLen:91), (PrivLen:121)
+	           length(curve : P-384) --> (PubLen:120), (PrivLen:167)
+	           length(curve : P-521) --> (PubLen:158), (PrivLen:223)
+
+	       RSA (with 2048)
+
+	           Public : MarshalPKCS1PublicKey (len:270)
+	           Private : MarshalPKCS1PrivateKey (len:1194)
+
+	           ---> (270, 1194)
+
+
+	*/
+	case 87: // Extract ID and Address with Encoded58
+		fmt.Printf(`    
+        ------------------------------------------------------------
+        Please input your type : 1(ID) or 2 (Address)
+        ------------------------------------------------------------
+        ----->> `)
+
+		////////////////////////////////////////////////////////////////
+
+		scanner_ := bufio.NewScanner(os.Stdin)
+		scanner_.Scan()
+
+		sort, err := strconv.Atoi(scanner_.Text())
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+		}
+
+		fmt.Printf(`    
+        ------------------------------------------------------------
+        Please input your PublicKey (base58)
+        ------------------------------------------------------------
+        ----->> `)
+
+		pubKey := GetKeyFromUser()
+		result := obtainIDandAddressFromPubKey(pubKey, sort)
+		if result == "" {
+			fmt.Printf("\tCannot get ID/Address from the given Key. Plz check again!!\n")
+		} else {
+			fmt.Printf("\tTYPE (%d) : %s\n", sort, result)
+		}
+
+		return
+
+	case 871: //SIGN :  Get [privKey(base58), message], and then Sign it
+
+		// ONLY for Edward...
+		if len(os.Args) != 4 {
+			fmt.Printf(`
+
+            Ex)./%s type[871] privatekey(base58/64) message
+
+`, marineVersion)
+			return
+		}
+
+		decodedPriv, err := Decode(string(os.Args[2])) //58-based privateKey to original type
+
+		if err != nil {
+			fmt.Printf("Error in Decode58() : %v\n", err)
+			//return
+			fmt.Printf("Retry base64Decoding.....\n")
+			decodedPriv, err = b64.StdEncoding.DecodeString(os.Args[2]) //Assume base64
+			if err != nil {
+				fmt.Printf("Error in Decode64() : %v\n", err)
+				return
+			}
+		}
+
+		//message := []byte(os.Args[3])
+		//message := skill.ComputeSHA256([]byte(os.Args[3]))
+		message := []byte(os.Args[3])
+
+		sig, err := Sign(decodedPriv, message)
+		if err != nil {
+			fmt.Printf("Error in Sign() : %v\n", err)
+			return
+		}
+
+		base64Signature := b64.StdEncoding.EncodeToString(sig)
+		base58Signature := Encode(sig)
+
+		fmt.Printf(`
+
+            + Signed Value(base64) --> %s 
+                - len : %d (raw:%d)
+
+            + Signed Value(base58) --> %s 
+                - len : %d
+
+`, base64Signature, len(base64Signature), len(sig), base58Signature, len(base58Signature))
+
+		////////////////////////////
+		/// Paul : Simple Check//
+		////////////////////////////
+		/*
+		   pubkey, err := Decode("6xr1SFx4Vci8FgzEu1wnGqfGSqy3uaTC9byio13xX9R7")
+		   if err != nil{
+		       fmt.Printf("Error in Decode() : %v\n", err)
+		       return
+		   }
+
+
+		    if !Verify(pubkey, []byte("iluvsomuch"), sig) { //
+		       fmt.Println("Check Verify() : Invalid signature --> Rejected\n")
+		       return
+		   }
+
+		   fmt.Printf("Local Check ---> Valid signature!!")
+		*/
+		return
+
+	case 872: // VERIFY : Get [sig, pubkey, message] in raw(base58), and then Verify it
+
+		// ONLY for Edward...
+		len_ := len(os.Args)
+		if len(os.Args) < 6 || len(os.Args) > 7 {
+			//  0       1              2                    3                  4         5            6 (len = 6 or 7)
+			fmt.Printf(`
+
+            Ex)./%s type[872] pubkey(base58/64) msgType(0:plain, 1:SHA256) message signature(base64/58)
+            Ex)./%s type[872] pubkey(base58/64) msgType(0:plain, 1:SHA256) message signature(R) signature(S)
+
+`, marineVersion, marineVersion)
+			return
+		}
+
+		pubkey, err := Decode_(string(os.Args[2])) //Assume base58
+		if err != nil {
+			fmt.Printf("Error in Decode() : %v\n", err)
+
+			fmt.Printf("Retry base64Decoding.....\n")
+			pubkey, err = b64.StdEncoding.DecodeString(os.Args[2]) //Assume base64
+			if err != nil {
+				fmt.Printf("Error in Decode() : %v\n", err)
+				return
+			}
+
+		}
+
+		var message []byte
+		if os.Args[3] == "0" { //plain
+			message = []byte(os.Args[4])
+		} else if os.Args[3] == "1" { //sha256
+			message = skill.ComputeSHA256([]byte(os.Args[4]))
+		}
+
+		//checkMsg := b64.StdEncoding.EncodeToString(message)
+		//fmt.Printf("b64.StdEncoding.EncodeToString : %s\n", checkMsg)
+
+		//signature, err := hex.DecodeString(os.Args[4]) //Assume hexa
+
+		var signatureByte []byte
+		decodeType := "base58_"
+		if len_ == 6 {
+
+			signatureByte, err = Decode_(os.Args[5]) //Assume base58
+
+			if err != nil {
+				fmt.Printf("Error in Decode58...Try for base64 again() : %v\n", err)
+
+				//Try base58
+				signatureByte, err = b64.StdEncoding.DecodeString(os.Args[5]) //Assume base64
+				if err != nil {
+					fmt.Printf("Error in Decode58_() : %v\n", err)
+					return
+				}
+				decodeType = "base64"
+
+			}
+
+			fmt.Printf("Decode Type (signature) --> : %s\n", decodeType)
+
+			if !Verify(pubkey, message, signatureByte) {
+				fmt.Println("Check Verify() : Invalid signature --> Rejected")
+				return
+			}
+
+		} else if len_ == 7 { // indicating (R,S) given,..
+
+			r, _ := new(big.Int).SetString(os.Args[5], 10)
+			s, _ := new(big.Int).SetString(os.Args[6], 10)
+
+			/*
+			   signature_ := signature{
+			       R: r.String(),
+			       S: s.String(),
+			   }
+
+			   signatureByte, err = json.Marshal(signature_)
+			   if err != nil {
+			       fmt.Printf("Marshal Error : %v\n", err)
+			       return
+			   }
+			*/
+
+			//Notes : message is regarded as it is, not checking if hashed or not!!
+			if !VerifyWithRS(pubkey, message, r, s) {
+				fmt.Println("Check Verify1() : Invalid signature --> Rejected")
+				return
+			}
+
+			/*
+			   //Notes : message is digeste3d with SHA256 inside.
+
+			   if _, err := buildEnvelopeWithGivens(pubkey, message, r, s); err!=nil{
+			       fmt.Println("Check Verify2() : Invalid signature --> Rejected\n")
+			       return
+			   }
+			*/
+
+		} else {
+			fmt.Printf("Please check invalid arguments again,...\n")
+			return
+		}
+
+		fmt.Printf(`
+
+            Local Check ---> OK. Valid signature!!\n
+
+`)
+		return
+
+	case 873: // check Key type from the given [pubkey]
+
+		// ONLY for Edward...
+		if len(os.Args) != 3 {
+			fmt.Printf(`
+
+            Ex)./%s type[873] pubkey(base58p/base64)
+`, marineVersion)
+			return
+		}
+
+		var pubkey []byte
+
+		pubkey, err = Decode_(string(os.Args[2]))
+		if err != nil {
+			fmt.Printf("Error in Decode() : %v\nRetry to decode in base64,...\n", err)
+
+			pubkey, err = b64.StdEncoding.DecodeString((string(os.Args[2])))
+			if err != nil {
+				fmt.Printf("Error in Decode() : %v\n", err)
+				return
+			}
+
+		}
+
+		type_ := detectKeyTypeFromPubKey(pubkey)
+
+		fmt.Printf("Public Key Type (0:None 1:ED 2:ECC 3:RSA) --> [%v]\n", type_)
+		return
+
+	case 874: // check Key type from the given [privKey]
+
+		// ONLY for Edward...
+		if len(os.Args) != 3 {
+			fmt.Printf(`
+
+                Ex)./%s type[874] privKey(base58p/base64)
+    `, marineVersion)
+			return
+		}
+
+		var privKey []byte
+
+		privKey, err = Decode(string(os.Args[2]))
+		if err != nil {
+			fmt.Printf("Error in Decode() : %v\nRetry to decode in base64,...\n", err)
+
+			privKey, err = b64.StdEncoding.DecodeString((string(os.Args[2])))
+			if err != nil {
+				fmt.Printf("Error in Decode64() : %v\n", err)
+				return
+			}
+
+		}
+
+		type_ := detectKeyTypeFromPrivKey(privKey)
+
+		fmt.Printf("Private Key Type (0:None 1:ED 2:ECC 3:RSA) --> [%v]\n", type_)
+		return
+
+	case 8741: // Get pubKey from the given [privKey]
+
+		// ONLY for Edward...
+		if len(os.Args) != 3 {
+			fmt.Printf(`
+
+            Ex)./%s type[8741] privKey (only for Edward25519)
+`, marineVersion)
+			return
+		}
+
+		var privKey []byte
+
+		privKey, err = Decode_(string(os.Args[2]))
+		if err != nil {
+			fmt.Printf("Error in Decode() : %v\nRetry to decode in base64,...\n", err)
+
+			privKey, err = b64.StdEncoding.DecodeString((string(os.Args[2])))
+			if err != nil {
+				fmt.Printf("Error in Decode64() : %v\n", err)
+				return
+			}
+
+		}
+
+		type_ := detectKeyTypeFromPrivKey(privKey)
+
+		fmt.Printf("Private Key Type (0:None 1:ED 2:ECC 3:RSA) --> [%v]\n", type_)
+		if type_ != 1 {
+			fmt.Printf("Support only type[1], Edward25519\n")
+			return
+		}
+
+		pubkey, _ := generatePubKeyFromPrivateKeyEW(privKey)
+
+		base64Pubkey := b64.StdEncoding.EncodeToString(pubkey)
+		base58Pubkey := Encode_(pubkey)
+
+		fmt.Printf(`
+
+            + PubKey(base64) --> %s 
+                - len : %d (raw:%d)
+
+            + PubKey(base58) --> %s 
+                - len : %d
+
+`, base64Pubkey, len(base64Pubkey), len(pubkey), base58Pubkey, len(base58Pubkey))
+
+		return
+
+	case 875:
+		// extract {R,S} from the signature
+		// only for P-256 curve
+		if len(os.Args) != 4 {
+			fmt.Printf(`
+
+            Ex)./%s type[875] sigType(base64:1 | base58:(N/A) | hex:3) signature
+
+`, marineVersion)
+			return
+		}
+
+		var signatureBytes []byte
+		switch os.Args[2] {
+		case "1":
+			signatureBytes, err = b64.StdEncoding.DecodeString(os.Args[3]) //base64
+			if err != nil {
+				return
+			}
+		case "2":
+			signatureBytes, err = Decode(os.Args[3]) //base58
+			if err != nil {
+				return
+			}
+		case "3":
+			signatureBytes, err = hex.DecodeString(os.Args[3])
+			if err != nil {
+				return
+			}
+
+		}
+
+		/*
+		   // we should always hash the message before signing it
+		   // https://www.ietf.org/rfc/rfc4754.txt
+		   bs := k.PrivKey.Params().BitSize
+		   var digest []byte
+
+		   switch {
+
+		   case bs <= 256:
+		       d := sha256.Sum256([]byte(message))
+		       digest = d[:]
+
+		   case bs > 256 && bs <= 384:
+		       d := sha512.Sum384([]byte(message))
+		       digest = d[:]
+
+		   case bs > 384:
+		       d := sha512.Sum512([]byte(message))
+		       digest = d[:]
+		   }
+
+		*/
+		// get curve byte size
+		//curveOrderByteSize := k.PubKey.Curve.Params().P.BitLen() / 8
+		curveOrderByteSize := 32
+
+		// extract r and s
+		r, s := new(big.Int), new(big.Int)
+		r.SetBytes(signatureBytes[:curveOrderByteSize])
+		s.SetBytes(signatureBytes[curveOrderByteSize:])
+
+		fmt.Printf("Extracted --> {R:%d, S:%d}\n", r, s)
+
+		return
+
+	case 88: // Key and Address Generagtion
+		if len(os.Args) != 3 && len(os.Args) != 4 {
+			fmt.Printf(`
+
+            Ex)./%s type[88] keytype[Edward25519:1, ECC:2, RSA:3] (seed)
+            
+            If seed not given, a random value is set to generate your key pairs.
+            (Seed is recommended for the case you may lose your keys)
+
+
+            Notice!!
+            The Keys and address are generated inside local machine, not connecting to any server or medium in the internet!!
+`, marineVersion)
+			return
+		}
+
+		keyTpye, err := strconv.Atoi(os.Args[2])
+
+		if err != nil {
+			fmt.Printf("Key Type Error, Plz check again!!\n")
+			return
+		}
+
+		if len(os.Args) == 4 {
+			seed = os.Args[3]
+		}
+
+		//marine(seed)
+		var public, private []byte
+
+		//seed := "All Roads Lead to Rome of FABRIC"  // --> 32 characters or more required!!!
+
+		if seed == "" {
+			public, private, _ = generateKey(rand.Reader, keyTpye)
+
+		} else if len(seed) < 32 {
+			color.Println("The SEED MUST be longer than 32 characters.....Try again!!\n")
+			color.Printf("Your input SEED has the length of [%d]......Put more!!\n", len(seed))
+			return
+		} else {
+			public, private, _ = generateKey(strings.NewReader(seed), keyTpye)
+		}
+
+		//fmt.Printf("public len : %v, private len : %v\n", len(public), len(private))
+
+		private_base58 := Encode(private)
+		public_base58 := Encode(public)
+		spaceAddr := generateAddress(public)
+		//sj
+		//fmt.Printf(`{"private_key":"%v", "public_key":"%v", "address":"%v"}`, private_base58, public_base58, spaceAddr)
+		file1, _ := os.Create("tmp.txt")
+		defer file1.Close()
+		fmt.Fprintf(file1, `{"private_key":"%v", "public_key":"%v", "address":"%v"}`, private_base58, public_base58, spaceAddr)
+
+		/*fmt.Printf(`
+
+
+		            ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+		            1) Public  Key (base58)     ---> %s
+		                           (base58_btc) ---> %s
+		                           (Raw : %x)
+		                           (len : %d)
+
+		            2) Private Key (base58)     ---> %s
+		                           (base58_btc) ---> %s
+		                           (Raw : %x)
+		                           (len : %d)
+
+		            3) Address -------> %s
+		            ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+		`, public_base58, Encode_(public), public, len(public), private_base58, Encode_(private), private, len(private), spaceAddr)*/
+
+		//fmt.Printf("Test [88] : Key Generation and Address ......END\n")
+		return
+
+	case 888: // balanceof() from QUERY command.
+
+		if len(os.Args) != 4 {
+
+			//fmt.Printf(`Ex)./marine ip:port 888 '{"Args":["balanceOf",{"address":"z39UzmN7GhPqkYiQfVWY4pYADMQzv7qWC"}]}' `)
+			fmt.Printf("Ex)./%s 888 ip:port Address(z39UzmN7GhPqkYiQfVWY4pYADMQzv7qWC)\n", marineVersion)
+			//                  0       1   2       3
+			return
+		}
+
+		fmt.Printf("Given Address : %s\n", os.Args[3])
+
+		/*
+		   Paul : Need to check if the address given is correct or not
+		*/
+
+		//balance_query := `{"Args":[ADMIN_USER,tokenChannel,"generic_cc",{"Args":["balanceOf",{"address":"%s"}]}]}`
+		balance_query := `{"Args":["balanceOf",{"address":"%s"}]}`
+		result, _ := validateAddress(os.Args[3])
+
+		if result {
+			balance_query = fmt.Sprintf(balance_query, os.Args[3])
+			fmt.Printf("Balance Query : %s\n", balance_query)
+
+		} else {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", os.Args[3])
+			return
+		}
+
+		//=========================================================================================================
+		// Hoding,..Here!!
+		//=========================================================================================================
+
+		var sj []interface{}
+		var fj interface{}
+		//sj = append(sj, userID_, channelID_, chaincodeID_)  // ---> For money system, they(chaincode, channel and userID) might be fixed.
+
+		err := json.Unmarshal([]byte(balance_query), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		fmt.Printf("Request --> balanaceOf  [888] : Query --> Sign and Verification ......END\n")
+
+	/*
+
+
+	   //      PLEASE DO NOT ERASE THE CODE BELOW
+	   //                                  - PAUL
+	   //
+
+	   case 80800000: // tranferFrom(), was original 808
+	       if len(os.Args) != 7 {
+	           fmt.Printf(`Ex)./marine 808 ip:port from to amount label`)
+	           return
+	       }
+
+	       from := os.Args[3]
+	       to := os.Args[4]
+	       amount := os.Args[5]
+	       label := os.Args[6]
+
+	       result, _ := validateAddress(from)
+	       if !result {
+	           fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", from)
+	           return
+	       }
+
+	       result, _ = validateAddress(to)
+	       if !result {
+	           fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", to)
+	           return
+	       }
+
+	       if from == to {
+	           fmt.Printf("Please Try again,....\n The given addresses are the same to each other!!\n")
+	           return
+	       }
+
+	       transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+
+	       var sj []interface{}
+	       var fj interface{}
+	       //sj = append(sj, userID_, channelID_, chaincodeID_)
+
+	       err := json.Unmarshal([]byte(transfer_args), &fj)
+
+	       if err != nil {
+	           fmt.Printf("Unmarshal return error: %v", err)
+	           return
+	       }
+	       sj = append(sj, fj)
+
+	       //************************************************************
+	       fmt.Printf(`
+	           ------------------------------------------------------------
+	           Please input your PrivateKey (base58) to check and sign
+	           ------------------------------------------------------------
+	           ----->> `)
+
+	       scanner_ := bufio.NewScanner(os.Stdin)
+	       scanner_.Scan()
+	       t_ := scanner_.Text()
+
+	       //decodedPriv, _ := base64.StdEncoding.DecodeString(string(t))
+	       decodedPriv, err := Decode(string(t_)) //58-based privateKey to original type
+	       //validateKey(decodedPriv)
+	       fmt.Println("\n\n\n\n")
+
+	       //message := []byte("I LUV U")
+	       message := []byte(from + to + amount + label)
+
+	       // Sign
+	       sig, err := Sign(decodedPriv, message)
+
+	       if err != nil {
+	           fmt.Printf("Error in Sign()...Check Agina\n")
+	       }
+
+	       fmt.Printf("Valid envelope!! (signature size : %d)\n", len(sig))
+
+	       derivedPubKey, _ := derivePubFromPrivate([]byte(decodedPriv))
+	       decoded58Public, _ := Decode(string(derivedPubKey))
+
+	       //var envelope [96 + 2]byte             //envelope(98) = pubkey(32) + 1(0x00) + sig(64) + 1 (0x00)
+
+	       copy(envelope[0:32], decoded58Public[:])
+	       copy(envelope[33:97], sig[:])
+
+
+	       if !Verify(envelope[0:32], message, envelope[33:97]) { //
+	           fmt.Println("---> Check Verify() : Invalid signature --> Rejected\n")
+	           return
+	       } else {
+	           fmt.Printf("---> Valid envelope!! (envelope size : %d)\n", len(envelope))
+	       }
+
+	       mj := make(map[string]interface{})
+	       mj["Args"] = sj
+
+	       mjBytes, err = json.Marshal(mj)
+	       if err != nil {
+	           fmt.Printf("Marshal return error %v", err)
+	           return
+	       }
+	*/
+
+	case 808: // new verion; tranferFrom2()) : type is changed from 808 to 8
+		if len(os.Args) != 7 {
+			fmt.Printf(`Ex)./%s 808 ip:port from to amount label`, marineVersion)
+			return
+		}
+
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		//    --> These need to be implanted into stargate with dockerArgumentsFile.
+
+		from := os.Args[3]
+		to := os.Args[4]
+		amount := os.Args[5]
+		label := os.Args[6]
+
+		result, _ := validateAddress(from)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", from)
+			return
+		}
+
+		result, _ = validateAddress(to)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", to)
+			return
+		}
+
+		/*
+		   if from == to {
+		       fmt.Printf("Please Try again,....\n The given addresses are the same to each other!!\n")
+		       return
+		   }
+		*/
+
+		transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(transfer_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//attachment, err = buildEnvelopeForApprove(owner, spender, label, limit, expired)
+		attachment, err = buildEnvelope("transferFrom", from, to, amount, label)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 8081: // expansion verion based on tranferFrom2()) : type is changed from 808 to 8
+		if len(os.Args) != 8 {
+			fmt.Printf(`Ex)./%s 808 ip:port function from to amount label`, marineVersion)
+			return
+		}
+
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		//    --> These need to be implanted into stargate with dockerArgumentsFile.
+		function := os.Args[3]
+		from := os.Args[4]
+		to := os.Args[5]
+		amount := os.Args[6]
+		label := os.Args[7]
+
+		result, _ := validateAddress(from)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", from)
+			return
+		}
+
+		result, _ = validateAddress(to)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", to)
+			return
+		}
+		/*
+		   if from == to {
+		       fmt.Printf("Please Try again,....\n The given addresses are the same to each other!!\n")
+		       return
+		   }
+		*/
+		transfer_args := fmt.Sprintf(`{"Args":["%s",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, function, from, to, amount, label)
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(transfer_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//attachment, err = buildEnvelopeForApprove(owner, spender, label, limit, expired)
+		attachment, err = buildEnvelope("transferFrom", from, to, amount, label)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 807: // chargeFee() from "tranferFrom2()"
+
+		/*******************************
+		    807 is not for API. This is only for TEST
+		    NEVER USE THIS, 807
+		*******************************/
+
+		if len(os.Args) != 7 {
+			fmt.Printf("Ex)./%s 807 ip:port from to amount label\n", marineVersion)
+			return
+		}
+
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		//    --> These need to be implanted into stargate with dockerArgumentsFile.
+
+		from := os.Args[3]
+		to := os.Args[4]
+		amount := os.Args[5]
+		label := os.Args[6]
+
+		result, _ := validateAddress(from)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", from)
+			return
+		}
+
+		result, _ = validateAddress(to)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", to)
+			return
+		}
+
+		if from == to {
+			fmt.Printf("Please Try again,....\n The given addresses are the same to each other!!\n")
+			return
+		}
+
+		transfer_args := fmt.Sprintf(`{"Args":["chargeFee",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(transfer_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//attachment, err = buildEnvelopeForApprove(owner, spender, label, limit, expired)
+		attachment, err = buildEnvelope("chargeFee", from, to, amount, label)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 818: //approve(), 818 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) != 8 {
+			fmt.Printf("Ex)./%s type[818(8)] [serverAdress:port] owner spender label limit(positive/0/inf) expired(UTC in sec)\n", marineVersion)
+			//               0                   1               2         3     4       5       6                   7 (len : 8)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		owner := os.Args[3]
+		spender := os.Args[4]
+		label := os.Args[5]
+		limit := os.Args[6]
+		expired := os.Args[7]
+
+		result, _ := validateAddress(owner)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", owner)
+			return
+		}
+
+		result, _ = validateAddress(spender)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", spender)
+			return
+		}
+
+		if owner == spender {
+			fmt.Printf("Please Try again,....\n The given addresses (owner and spender) are the same to each other!!\n")
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		approve_args := fmt.Sprintf(`{"Args":["approve",{"owner":"%s", "spender":"%s", "label":"%s", "limit":"%s", "expired":"%s"}]}`, owner, spender, label, limit, expired)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(approve_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//attachment, err = buildEnvelopeForApprove(owner, spender, label, limit, expired)
+		attachment, err = buildEnvelope("approve", owner, spender, label, limit, expired)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 828: //issue(), 828 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) < 6 {
+			fmt.Printf("Ex)./%s type[828(->8)] [serverAdress:port] symbol, issuer totalsupply\n", marineVersion)
+			//               0        1               2              3       4        5      (total : 6)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		symbol := os.Args[3]
+		issuer := os.Args[4]
+		totalsupply := os.Args[5]
+		//sj
+		fmt.Printf("\nlen: %v\n", len(os.Args))
+
+		var privKey string
+		if len(os.Args) >= 7 {
+			privKey = os.Args[6]
+			fmt.Printf("privateKey param: %v\n", privKey)
+		}
+		//
+
+		result, _ := validateAddress(issuer)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address(founder) is INVALID !!! : %s\n", issuer)
+			return
+		}
+
+		if len(symbol) <= 1 {
+			fmt.Printf("title MUST be longer than size(1) : %s\n", symbol)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		issue_args := fmt.Sprintf(`{"Args":["issue",{"symbol":"%s", "issuer":"%s", "totalsupply":"%s"}]}`, symbol, issuer, totalsupply)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(issue_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		if len(os.Args) >= 7 {
+
+			attachment, err = buildEnvelopewithPrivKey("issue", symbol, issuer, totalsupply, privKey)
+		} else {
+
+			attachment, err = buildEnvelope("issue", symbol, issuer, totalsupply)
+		}
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 868: //mint(), 868 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) < 6 {
+			fmt.Printf("Ex)./%s type[868(->8)] [serverAdress:port] minter symbol mintedAmount at(option)\n", marineVersion)
+			//               0        1               2              3       4        5        (total : 6)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		minter := os.Args[3]
+		symbol := os.Args[4]
+		mintedamount := os.Args[5]
+
+		var at string = ""
+		if len(os.Args) == 7 {
+			at = os.Args[6]
+		}
+
+		result, _ := validateAddress(minter)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address(founder) is INVALID !!! : %s\n", minter)
+			return
+		}
+
+		if len(symbol) <= 1 {
+			fmt.Printf("title MUST be longer than size(1) : %s\n", symbol)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		mint_args := fmt.Sprintf(`{"Args":["mint",{"minter":"%s", "symbol":"%s", "mintedamount":"%s", "at":"%s"}]}`, minter, symbol, mintedamount, at)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(mint_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("mint", minter, symbol, mintedamount)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 848: //burn(), 848 --> 8 to keep the format as the INVOKE command (type : 8)
+		len_arg := len(os.Args)
+		if len_arg < 5 || len_arg > 7 {
+			fmt.Printf("Ex)./%s type[848(->8)] [serverAdress:port] burner symbol burnedAmount at(option)\n", marineVersion)
+			//               0        1               2              3       4        5(6)           6(7)   (total : 6 or 7)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		burner := os.Args[3]
+		symbol := os.Args[4]
+		burnedamount := os.Args[5]
+		var at string
+
+		//utxokey = ""
+		at = ""
+		if len_arg == 7 {
+			at = os.Args[6]
+		}
+
+		result, _ := validateAddress(burner)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address(founder) is INVALID !!! : %s\n", burner)
+			return
+		}
+
+		if len(symbol) <= 1 {
+			fmt.Printf("title MUST be longer than size(1) : %s\n", symbol)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		burn_args := fmt.Sprintf(`{"Args":["burn",{"burner":"%s", "symbol":"%s", "burnedamount":"%s", "at":"%s"}]}`, burner, symbol, burnedamount, at)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(burn_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("burn", burner, symbol, burnedamount)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 101: //establish(), 101 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[101(8)] [serverAdress:port] founder title", marineVersion)
+			//               0      1               2             3      4 (total : 5)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		founder := os.Args[3]
+		title := os.Args[4]
+
+		result, _ := validateAddress(founder)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address(founder) is INVALID !!! : %s\n", founder)
+			return
+		}
+
+		if len(title) <= 1 {
+			fmt.Printf("title MUST be longer than size(1) : %s\n", title)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		establish_args := fmt.Sprintf(`{"Args":["establish",{"founder":"%s", "title":"%s"}]}`, founder, title)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(establish_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("establish", founder, title)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 102: //Join(), 102 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) != 7 {
+			fmt.Printf("Ex)./%s type[102(8)] [serverAdress:port] host guest title type[public(0)/private(1)/memberOnly(2)]", marineVersion)
+			//               0      1               2           3      4    5         6                                     (total : 7)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		host := os.Args[3]
+		guest := os.Args[4]
+		title := os.Args[5]
+		join_type := os.Args[6]
+
+		result, _ := validateAddress(host)
+		if !result {
+			fmt.Printf("Please Try again,....\n\tThe given address(%s) is INVALID !!!\n", host)
+			return
+		}
+
+		result, _ = validateAddress(guest)
+		if !result {
+			fmt.Printf("Please Try again,....\n\tThe given address(%s) is INVALID !!!\n", guest)
+			return
+		}
+
+		if len(title) <= 1 {
+			fmt.Printf("Please Try again,....\n\tTitle MUST be longer than size(1) : %s\n", title)
+			return
+		}
+
+		if !strings.ContainsAny("0123", join_type) {
+			fmt.Printf("Please Try again,....\n\tJoin-Type must be in [public(0), private(1), memberOnly(2)]")
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		join_args := fmt.Sprintf(`{"Args":["join",{"host":"%s", "guest":"%s", "title":"%s", "type":"%s"}]}`, host, guest, title, join_type)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(join_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("join", host, guest, title, join_type)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 103: //leave(), 103 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[103(8)] [serverAdress:port] member title", marineVersion)
+			//              0       1               2           3      4       (total : 5)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		member := os.Args[3]
+		title := os.Args[4]
+
+		result, _ := validateAddress(member)
+		if !result {
+			fmt.Printf("Please Try again,....\n\tThe given address(%s) is INVALID !!!\n", member)
+			return
+		}
+
+		if len(title) <= 1 {
+			fmt.Printf("Please Try again,....\n\tTitle MUST be longer than size(1) : %s\n", title)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		leave_args := fmt.Sprintf(`{"Args":["leave",{"member":"%s", "title":"%s"}]}`, member, title)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(leave_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("leave", member, title)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+		/*
+
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 104: //modify(), 104 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) != 6 {
+			fmt.Printf("Ex)./%s type[104(8)] [serverAdress:port] member title type", marineVersion)
+			//               0      1               2           3      4      5     (total : 6)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		member := os.Args[3]
+		title := os.Args[4]
+		modify_type := os.Args[5]
+
+		result, _ := validateAddress(member)
+		if !result {
+			fmt.Printf("Please Try again,....\n\tThe given address(%s) is INVALID !!!\n", member)
+			return
+		}
+
+		if len(title) <= 1 {
+			fmt.Printf("Please Try again,....\n\tTitle MUST be longer than size(1) : %s\n", title)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		modify_args := fmt.Sprintf(`{"Args":["modifyMember",{"member":"%s", "title":"%s", "type":"%s"}]}`, member, title, modify_type)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(modify_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("modifyMember", member, title, modify_type)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 105: //status(), 105 --> 8 to keep the format as the INVOKE command (type : 8)
+		if len(os.Args) != 5 {
+			fmt.Printf("Ex)./%s type[104(8)] [serverAdress:port] member title", marineVersion)
+			//               0      1               2             3      4   (total : 5)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		member := os.Args[3]
+		title := os.Args[4]
+
+		result, _ := validateAddress(member)
+		if !result {
+			fmt.Printf("Please Try again,....\n\tThe given address(%s) is INVALID !!!\n", member)
+			return
+
+		}
+
+		if len(title) <= 1 {
+			fmt.Printf("Please Try again,....\n\tTitle MUST be longer than size(1) : %s\n", title)
+			return
+		}
+
+		//transfer_args := fmt.Sprintf(`{"Args":["transferFrom",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, to, amount, label)
+		modify_args := fmt.Sprintf(`{"Args":["status",{"member":"%s", "title":"%s"}]}`, member, title)
+		//'{"Args":["approve",{"owner":"z12abcdef", "spender":"zlkjhgffd", "lable":"btc", "limit" :"1000000", "expired":""}]}'
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		//fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(modify_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		attachment, err = buildEnvelope("status", member, title)
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+		/*
+		   fmt.Printf("Testing,..............Done!!\n")
+		   return
+		*/
+
+	case 108:
+
+		if len(os.Args) != 6 {
+
+			fmt.Printf("Ex)./%s type[108] [serverAdress:port] userID channelID chaincode", marineVersion)
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		chaincodeID_ = os.Args[5]
+		arg_ := `{"Args":["login"]}`
+		//'{"Args":["delete","btc"]}'
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(arg_), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		nonce, err := skill.GetRandomNonce()
+		if err != nil {
+			fmt.Printf("Error: %v", err)
+			return
+		}
+
+		attachment, err = buildEnvelope("login", arg_, string(nonce))
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+	case 111:
+		if len(os.Args) != 7 {
+
+			fmt.Printf("Ex)./%s type[111] [serverAdress:port] userID channelID chaincode ({\"Args\":[\"putPrivate\",\"c\"]})", marineVersion)
+			//               0       1               2           3       4           5               6
+			return
+		}
+		userID_ = os.Args[3]
+		channelID_ = os.Args[4]
+		chaincodeID_ = os.Args[5]
+
+		//args_.Args = append(args_.Args, os.Args[3], os.Args[4], os.Args[5], os.Args[6])
+		fmt.Printf("Args : %s", os.Args[6])
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(os.Args[6]), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		attachment, err = buildEnvelope("putPrivate", os.Args[6])
+
+		if err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelope() : %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+	case 899: // query functions from QUERY command.
+		/*
+		   if len(os.Args) != 6 {
+
+		       fmt.Printf(`Ex)./marine ip:port 899 address from to`)
+		       //                  0       1   2    3        4  5
+
+		       return
+		   }
+
+		   address_ := os.Args[3]
+		   from_ := os.Args[4]
+		   to_ := os.Args[5]
+
+
+		   fmt.Printf("TX TIME LOG ADDRESS: %s FROM : %s TO : %s", address_, from_, to_)
+
+		   ttl_query := `{"Args":["queryTTL", {"address":"%s", "from":"%s", "to":"%s"}]}`
+
+		   ttl_query = fmt.Sprintf(ttl_query, address_, from_, to_)
+		*/
+
+		if len(os.Args) != 4 {
+
+			fmt.Printf("Ex)./%s 899 ip:port {json_format}\n", marineVersion)
+			return
+		}
+
+		ttl_query := os.Args[3]
+		fmt.Printf("TTL Query : %s", ttl_query)
+
+		//=========================================================================================================
+		// Hoding,..Here!!
+		//=========================================================================================================
+
+		var sj []interface{}
+		var fj interface{}
+		//sj = append(sj, userID_, channelID_, chaincodeID_)  // ---> For money system, they(chaincode, channel and userID) might be fixed.
+
+		err := json.Unmarshal([]byte(ttl_query), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		fmt.Printf("Request --> queryTTL  [899] : Query--> ......END\n")
+
+	case 900: // a deposit function of dex
+		if len(os.Args) != 9 {
+			fmt.Printf(`Ex)./%s 900 ip:port dexAddress from to amount label expired`, marineVersion)
+			return
+		}
+
+		var timelock int64
+		dexAddress := os.Args[3]
+		from := os.Args[4]
+		to := os.Args[5]
+		amount := os.Args[6]
+		label := os.Args[7]
+
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+		dexRequestType := "deposit"
+
+		expired, err := strconv.Atoi(os.Args[8])
+		if err == nil {
+			if expired <= 0 {
+				timelock = 0
+			} else {
+				timelock = int64(expired) + time.Now().Unix()
+			}
+		} else {
+			fmt.Println("timelock should be the number")
+			return
+		}
+
+		secret := skill.GenerateUUID()
+		hashlock := sha256.Sum256([]byte(secret))
+
+		contractId := skill.GenerateUUID()
+
+		fmt.Println("\n\n--------------------------------------------------------------------------")
+		fmt.Println("Please save the secret and the contractId to withdraw or refund tokens later")
+		fmt.Println("----------------------------------------------------------------------")
+		fmt.Println("secret: ", secret)
+		fmt.Println("contractId: ", contractId)
+		fmt.Printf("-------------------------------------------------------------------------\n\n")
+
+		//validate addresses
+		result, _ := validateAddress(from)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", from)
+			return
+		}
+
+		result, _ = validateAddress(to)
+		if !result {
+			fmt.Printf("Please Try again,....\nThe given address is INVALID !!! : %s\n", to)
+			return
+		}
+
+		if from == to {
+			fmt.Printf("Please Try again,....\n The given addresses are the same to each other!!\n")
+			return
+		}
+
+		var sj []interface{}
+		var fj interface{}
+
+		sj = append(sj, userID_, channelID_, chaincodeID_, dexRequestType)
+
+		//generate invoke args
+		invoke_args := fmt.Sprintf(`{"Args":["create","%s", {"doctype":"DEX", "from":"%s", "to":"%s", "amount":"%s", "label":"%s", "hashlock":"%x", "timelock":"%d", "withdrawn":false, "refunded":false}]}`, contractId, from, to, amount, label, hashlock, timelock)
+		err = json.Unmarshal([]byte(invoke_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		//generate transfer args
+		transfer_args := fmt.Sprintf(`{"Args":["transferFrom_",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, from, dexAddress, amount, label)
+		err = json.Unmarshal([]byte(transfer_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		//generate request args
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//generate an envelope
+		attachment, err = buildEnvelope("transferFrom", from, dexAddress, amount, label)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+	case 910: // a withdraw function of dex
+		if len(os.Args) != 6 {
+			fmt.Printf(`Ex)./%s 910 ip:port dexAddress contractId secret`, marineVersion)
+			return
+		}
+
+		var contract contractDetails
+
+		dexAddress := os.Args[3]
+		contractId := os.Args[4]
+		secret := os.Args[5]
+
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+		dexRequestType := "withdraw"
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		//generate query args
+		query_args := fmt.Sprintf(`{"Args":["queryByKey","%s"]}`, contractId)
+		err := json.Unmarshal([]byte(query_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//get contract info
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: 7, Args: string(mjBytes)})
+
+		if respErr != nil {
+			fmt.Printf("could not greet: %v %v", resp, respErr)
+			return
+		}
+
+		//validation check
+		if !withdrawable(resp, &contract, secret) {
+			fmt.Println("It is not withdrable")
+			return
+		}
+
+		sj = sj[:len(sj)-1]
+		sj = append(sj, dexRequestType)
+
+		//generate invoke args
+		invoke_args := fmt.Sprintf(`{"Args":["update","%s", {"doctype":"%s", "from":"%s", "to":"%s", "amount":"%s", "label":"%s", "hashlock":"%s", "timelock":"%s", "withdrawn":true, "refunded":%t}]}`, contractId, contract.DocType, contract.From, contract.To, contract.Amount, contract.Label, contract.Hashlock, contract.Timelock, contract.Refunded)
+		err = json.Unmarshal([]byte(invoke_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		//generate transfer args
+		transfer_args := fmt.Sprintf(`{"Args":["transferFrom_",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, dexAddress, contract.To, contract.Amount, contract.Label)
+		err = json.Unmarshal([]byte(transfer_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//generate an envelope
+		attachment, err = buildEnvelope("transferFrom", dexAddress, contract.To, contract.Amount, contract.Label)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 900
+		///////////////////////////////////
+
+	case 920: // a refund function of dex
+		if len(os.Args) != 5 {
+			fmt.Printf(`Ex)./%s 920 ip:port dexAddress contractId`, marineVersion)
+			return
+		}
+
+		var contract contractDetails
+
+		dexAddress := os.Args[3]
+		contractId := os.Args[4]
+
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+		dexRequestType := "refund"
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		//generate query args
+		query_args := fmt.Sprintf(`{"Args":["queryByKey","%s"]}`, contractId)
+		err := json.Unmarshal([]byte(query_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//get contract info
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: 7, Args: string(mjBytes)})
+
+		if respErr != nil {
+			fmt.Printf("could not greet: %v %v", resp, respErr)
+			return
+		}
+
+		//validation check
+		if !refundable(resp, &contract) {
+			fmt.Println("It is not refundable")
+			return
+		}
+
+		sj = sj[:len(sj)-1]
+		sj = append(sj, dexRequestType)
+
+		//generate invoke args
+		invoke_args := fmt.Sprintf(`{"Args":["update","%s", {"doctype":"%s", "from":"%s", "to":"%s", "amount":"%s", "label":"%s", "hashlock":"%s", "timelock":"%s", "withdrawn":%t, "refunded":true}]}`, contractId, contract.DocType, contract.From, contract.To, contract.Amount, contract.Label, contract.Hashlock, contract.Timelock, contract.Withdrawn)
+		err = json.Unmarshal([]byte(invoke_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		//generate transfer args
+		transfer_args := fmt.Sprintf(`{"Args":["transferFrom_",{"from":"%s", "to":"%s", "amount":"%s", "label":"%s"}]}`, dexAddress, contract.From, contract.Amount, contract.Label)
+		err = json.Unmarshal([]byte(transfer_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v", err)
+			return
+		}
+		sj = append(sj, fj)
+
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v", err)
+			return
+		}
+
+		//generate an envelope
+		attachment, err = buildEnvelope("transferFrom", dexAddress, contract.From, contract.Amount, contract.Label)
+
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 900
+		///////////////////////////////////
+
+	case 28: // TIME
+
+		if len(os.Args) != 3 {
+
+			fmt.Printf(`
+                Ex)./%s 28 "2019-03-05 00:00:00"
+`, marineVersion)
+			return
+		}
+
+		date := os.Args[2]
+		date2Epoch(date)
+
+		return
+
+	case 82: // TIME
+
+		if len(os.Args) != 3 {
+
+			fmt.Printf("Ex)./%s 82 epoch (1551744000, formate : seconds)\n", marineVersion)
+			return
+		}
+
+		epoch := os.Args[2]
+		epoch2Date(epoch)
+
+		return
+
+	case 68: // UUID GenerateUUID
+
+		if len(os.Args) != 2 {
+
+			fmt.Printf("Ex)./%s 68\n", marineVersion)
+			return
+		}
+
+		//seed := os.Args[2]
+		//result := skill.Flatten(json)
+		uuid := skill.GenerateUUID()
+		fmt.Printf("%s\n", uuid)
+
+		return
+
+	case 1000: // UUID GenerateUUID
+
+		if len(os.Args) != 5 {
+
+			fmt.Printf(`Ex)./%s 1000 [Case] [N] [Key Type]
+                            CASE : 1(key gen), 2(Signing), 3(Verification)
+                            N : Iteration
+                            Key :  1(Edward25519), 2(ECC) and 3(RSA, Dont try!)
+
+                            `, marineVersion)
+			return
+		}
+
+		case_, _ := strconv.Atoi(os.Args[2])
+		N, _ := strconv.Atoi(os.Args[3])
+		keyType, _ := strconv.Atoi(os.Args[4])
+
+		Benchmarking(case_, N, keyType)
+
+		return
+
+	//Asymmertic enc/dec
+	case 201:
+		fmt.Printf("Under construction Try later..\n")
+		return
+
+	case 202:
+		fmt.Printf("Under construction Try later..\n")
+		return
+
+	//Symmertic enc/dec
+
+	case 301:
+		if len(os.Args) != 4 {
+			fmt.Printf("Ex)./%s 301 [passwd] [text]\n", marineVersion)
+			return
+		}
+
+		passwd := os.Args[2]
+		text := os.Args[3]
+
+		encryptMsg, err := encryptPKCS7CFB([]byte(passwd), text)
+		//encryptMsg, err := encryptPKCS7CBC([]byte(passwd), text)
+
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+
+		fmt.Printf("EncryptMsg --> %v\n", encryptMsg)
+
+		return
+
+	case 302:
+		if len(os.Args) != 4 {
+			fmt.Printf("Ex)./%s 302 [passwd] [encryptMsg]\n", marineVersion)
+			return
+		}
+
+		passwd := os.Args[2]
+		encryptMsg := os.Args[3]
+
+		msg, err := decryptPKCS7CFB([]byte(passwd), encryptMsg)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+		}
+
+		fmt.Println("DecryptedMsg --> " + msg) // Hello World
+
+		return
+
+	case 600: //registerXindex(index)
+		if len(os.Args) != 4 {
+			fmt.Printf("Ex)./%s type[600(8)] [serverAdress:port] index\n", marineVersion)
+			//               0       1             2              3     (total : 4)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		index := os.Args[3]
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}s
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		var founder []byte
+		attachment, founder = buildEnvelopeAndAccount("registerXindex", index)
+
+		if founder == nil || attachment == nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelopeAndAccount() : %v\n", err)
+			return
+		}
+
+		registerXindex_args := fmt.Sprintf(`{"Args":["registerXindex",{"founder":"%s", "title":"%s"}]}`, string(founder), index)
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(registerXindex_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+		//return
+
+	case 601: //addXrate(index.....)
+		if len(os.Args) != 9 {
+			fmt.Printf("Ex)./%s 601 ip:port INDEX LABEL IN OUT STD DESC\n", marineVersion)
+			//                  0      1         2         3      4   5   6   7   8    (total : 9)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		index := os.Args[3]
+		label := os.Args[4]
+		in := os.Args[5]
+		out := os.Args[6]
+		std := os.Args[7]
+		desc := os.Args[8]
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}s
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		addXrate_args := fmt.Sprintf(`{"Args":["addXrate",{"index":"%s", "label":"%s", "in":"%s", "out":"%s", "std":"%s", "desc":"%s"}]}`, index, label, in, out, std, desc)
+
+		attachment, err = buildEnvelope("addXrate", addXrate_args)
+
+		if attachment == nil || err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelopeAndAccount() : %v\n", err)
+			return
+		}
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(addXrate_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+	case 602: //updateXrate(index.....)
+		if len(os.Args) != 9 {
+			fmt.Printf("Ex)./%s 602 ip:port INDEX LABEL IN OUT STD DESC\n", marineVersion)
+			//              0    1     2     3      4   5   6   7   8    (total : 9)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		index := os.Args[3]
+		label := os.Args[4]
+		in := os.Args[5]
+		out := os.Args[6]
+		std := os.Args[7]
+		desc := os.Args[8]
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}s
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		addXrate_args := fmt.Sprintf(`{"Args":["updateXrate",{"index":"%s", "label":"%s", "in":"%s", "out":"%s", "std":"%s", "desc":"%s"}]}`, index, label, in, out, std, desc)
+
+		attachment, err = buildEnvelope("updateXrate", addXrate_args)
+
+		if attachment == nil || err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelopeAndAccount() : %v\n", err)
+			return
+		}
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(addXrate_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+	case 626: //eXchange
+		if len(os.Args) < 8 || len(os.Args) > 9 {
+			fmt.Printf("Ex)./%s 626 ip:port index address amount fromlabel tolabel option\n", marineVersion)
+			//               0   1    2     3      4        5    6           7       8    (total : 9)
+			return
+		}
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		userID_ = ADMIN_USER
+		channelID_ = tokenChannel
+		chaincodeID_ = tokenCC
+
+		index := os.Args[3]
+		address := os.Args[4]
+		amount := os.Args[5]
+		fromlabel := os.Args[6]
+		tolabel := os.Args[7]
+
+		option := ""
+
+		if len(os.Args) == 9 {
+			option = os.Args[8]
+		}
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		///     Paul:
+		///         Build a envelope including {pubkey, signature}s
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//'{"Args":["eXchange",{"index":"KOREX1", "address":"z2Y6dzY3igFt5J5V2u2NDcSNXEFYqdDXW", "amount":100, "fromlabel":"btc", "tolabel":"etc"}]}'
+
+		exchange_args := fmt.Sprintf(`{"Args":["eXchange",{"index":"%s", "address":"%s", "amount":"%s", "fromlabel":"%s", "tolabel":"%s", "option":"%s"}]}`, index, address, amount, fromlabel, tolabel, option)
+
+		attachment, err = buildEnvelope("eXchange", exchange_args)
+
+		if attachment == nil || err != nil {
+			// ALready print out the error of "buildEnvelopeForApprove()"
+			fmt.Printf("Error in buildEnvelopeAndAccount() : %v\n", err)
+			return
+		}
+
+		var sj []interface{}
+		var fj interface{}
+		sj = append(sj, userID_, channelID_, chaincodeID_)
+
+		err := json.Unmarshal([]byte(exchange_args), &fj)
+		if err != nil {
+			fmt.Printf("Unmarshal return error: %v\n", err)
+			return
+		}
+		sj = append(sj, fj)
+		mj := make(map[string]interface{})
+		mj["Args"] = sj
+
+		mjBytes, err = json.Marshal(mj)
+		if err != nil {
+			fmt.Printf("Marshal return error %v\n", err)
+			return
+		}
+
+		///////////////////////////////////
+		type_ = 8
+		///////////////////////////////////
+
+	default:
+
+		fmt.Printf("Not defined yet!! Try again!!\n")
+		return
+	}
+
+	// Set up a connection to the server.
+
+	// Contact the server and print out its response.
+	//name := defaultName
+	var requestArgs []byte
+	if pb.MessageType(type_) == pb.MessageType_QUERY_CHAINCODE || pb.MessageType(type_) == pb.MessageType_INVOKE_CHAINCODE || pb.MessageType(type_) == 21 || pb.MessageType(type_) == 888 || pb.MessageType(type_) == 808 || pb.MessageType(type_) == 899 || pb.MessageType(type_) == 900 {
+		fmt.Printf("Q1 %s\n", mjBytes)
+		requestArgs = mjBytes
+	} else {
+		requestArgs, err = json.Marshal(args_)
+		if err != nil {
+			fmt.Printf("Marshal return error: %v\n", err)
+			return
+		}
+	}
+	fmt.Printf("requestArgs --> %v\n", string(requestArgs))
+
+	/*
+	   var receivedArgs arguments
+	   json.Unmarshal(requestArgs, &receivedArgs)
+	   fmt.Printf("receivedArgs --> %v", receivedArgs)
+	*/
+
+	if pb.MessageType(type_) == pb.MessageType_INVOKE_CHAINCODE || pb.MessageType(type_) == 900 {
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: int32(type_), Args: string(requestArgs), Document: attachment})
+		/*} else if pb.MessageType(type_) == 808 {// for old transferFrom()
+		  resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: int32(type_), Args: string(requestArgs), Document: envelope[:]})
+		*/
+	} else {
+		resp, respErr = c.ProcessCOMM(context.Background(), &pb.ProcessRequest{RequestType: int32(type_), Args: string(requestArgs)})
+	}
+	if respErr != nil {
+		fmt.Printf("Cannot greet: %v %v\n", resp, respErr)
+		return
+	}
+
+	if resp.Status == 1 {
+		fmt.Printf("Delivered Responses from Server --> %v\n", resp)
+	} else {
+		fmt.Printf("Delivered Responses from Server --> Status : %d\n%s\n", resp.Status, string(resp.Payload))
+		file1, _ := os.Create("issueToken.txt")
+		defer file1.Close()
+		fmt.Fprintf(file1, `{"result":"%v"}`, string(resp.Payload))
+
+	}
+
+	if strings.Contains(string(requestArgs), "balanceOf") {
+		skill.DisplayUTXOperLabel(string(resp.Payload))
+		skill.DisplayUTXOperLabelwithCount(string(resp.Payload))
+	}
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+//  End of Marine
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func withdrawable(resp *pb.ProcessResponse, contract *contractDetails, secret string) bool {
+	//if the requested contract doesn't exist
+	if resp.Status == 1 {
+		fmt.Printf("Contract does not exist. \n\nDelivered Responses from Server --> Status : %d  %v", resp.Status, resp)
+		return false
+	}
+
+	//get json
+	err := json.Unmarshal(resp.Payload, &contract)
+	if err != nil {
+		fmt.Printf("Unmarshal return error: %v", err)
+		return false
+	}
+
+	//if the requested contract is already settled
+	if contract.Withdrawn == true {
+		fmt.Printf("\n already withdrawn \n\n")
+		return false
+	}
+
+	//if the hashlock hash does not match
+	hashlock := sha256.Sum256([]byte(secret))
+	if contract.Hashlock != fmt.Sprintf("%x", hashlock) {
+		fmt.Printf("\n hash does not match \n\n")
+		return false
+	}
+
+	//if the timelock time is not in the future
+	timelock, _ := strconv.Atoi(contract.Timelock)
+	if timelock > 0 && int64(timelock) < time.Now().Unix() {
+		fmt.Printf("\n timelock time must be in the future \n\n")
+		return false
+	}
+
+	return true
+}
+
+func refundable(resp *pb.ProcessResponse, contract *contractDetails) bool {
+	//if the requested contract doesn't exist
+	if resp.Status == 1 {
+		fmt.Printf("Contract does not exist. \n\nDelivered Responses from Server --> Status : %d  %v", resp.Status, resp)
+		return false
+	}
+
+	//get json
+	err := json.Unmarshal(resp.Payload, &contract)
+	if err != nil {
+		fmt.Printf("Unmarshal return error: %v", err)
+		return false
+	}
+
+	//if the requested contract is already settled
+	if contract.Withdrawn == true {
+		fmt.Printf("\n already withdrawn \n\n")
+		return false
+	}
+
+	//if the requested contract is already refunded
+	if contract.Refunded == true {
+		fmt.Printf("\n already refunded \n\n")
+		return false
+	}
+
+	//if the timelock time is not passed
+	timelock, _ := strconv.Atoi(contract.Timelock)
+	if timelock > 0 && int64(timelock) > time.Now().Unix() {
+		fmt.Printf("\n timelock not yet passed \n\n")
+		return false
+	}
+
+	return true
+}
